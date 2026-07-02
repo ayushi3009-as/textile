@@ -31,7 +31,8 @@ export default function Dashboard() {
     const fetchLeads = async () => {
       if (!token) return;
       try {
-        const response = await fetch('http://localhost:3000/api/leads', {
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+        const response = await fetch(`${API_URL}/api/leads`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -60,7 +61,8 @@ export default function Dashboard() {
   // Connect to SSE Backend
   useEffect(() => {
     // We listen to the Express server running on port 3000
-    const eventSource = new EventSource('http://localhost:3000/api/events');
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const eventSource = new EventSource(`${API_URL}/api/events`);
     
     eventSource.onopen = () => {
       setServerStatus('connected');
@@ -103,7 +105,8 @@ export default function Dashboard() {
 
   const testWebhook = async () => {
     try {
-      await fetch('http://localhost:3000/api/test-event');
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      await fetch(`${API_URL}/api/test-event`);
     } catch (e) {
       alert("Failed to reach backend. Make sure server.js is running on port 3000.");
     }

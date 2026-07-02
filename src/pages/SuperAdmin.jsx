@@ -22,7 +22,8 @@ export default function SuperAdmin() {
   const fetchClients = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:3000/api/superadmin/clients');
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const response = await fetch(`${API_URL}/api/superadmin/clients`);
       const data = await response.json();
       setClients(data);
     } catch (err) {
