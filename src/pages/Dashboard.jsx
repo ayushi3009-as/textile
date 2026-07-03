@@ -331,7 +331,7 @@ export default function Dashboard() {
                 {selectedCall.recording_url && (
                   <div style={{ marginBottom: '16px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '8px' }}>
                     <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>Call Recording</span>
-                    <audio src={selectedCall.recording_url} controls style={{ width: '100%', height: '32px' }} />
+                    <audio src={`${API_URL}/api/play-recording?url=${encodeURIComponent(selectedCall.recording_url)}`} controls style={{ width: '100%', height: '32px' }} />
                   </div>
                 )}
 
