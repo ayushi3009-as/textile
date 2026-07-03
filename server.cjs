@@ -420,7 +420,7 @@ wss.on('connection', (ws, req) => {
 
       const completion = await groq.chat.completions.create({
         messages: chatHistory,
-        model: 'llama-3.1-8b-instant',
+        model: 'llama-3.3-70b-versatile',
         temperature: 0.7,
         max_tokens: 100
       });
@@ -623,7 +623,7 @@ Return ONLY a raw JSON object with the following schema, and no other text:
 
         groq.chat.completions.create({
           messages: extractionPrompt.messages,
-          model: 'llama-3.1-8b-instant',
+          model: 'llama-3.3-70b-versatile',
           response_format: { type: 'json_object' },
           temperature: 0.1
         }).then(async (completion) => {
