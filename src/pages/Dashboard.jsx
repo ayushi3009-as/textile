@@ -127,23 +127,13 @@ export default function Dashboard() {
         <div className="brand-section">
           <div className="logo-icon">{companyName.charAt(0).toUpperCase()}</div>
           <div>
-            <h1 className="brand-title">{companyName} <span>Voice SaaS Dashboard</span></h1>
-            <p style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-              Live monitoring — Twilio + Deepgram + Llama-3 Voice Agent
-            </p>
+            <h1 className="brand-title" style={{ fontSize: '28px', fontWeight: '800', letterSpacing: '-0.5px', background: 'linear-gradient(90deg, #fff, #a5b4fc)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+              {companyName}
+            </h1>
           </div>
         </div>
         
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <button 
-            className="btn btn-primary" 
-            onClick={testWebhook}
-            style={{ padding: '8px 12px' }}
-          >
-            <Zap size={14} /> Send Test Call
-          </button>
-          
-          <button 
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}> 
             className="btn btn-secondary" 
             onClick={handleLogout}
             style={{ padding: '8px 12px', borderColor: 'rgba(239,68,68,0.2)', color: 'var(--color-spam)' }}
@@ -157,69 +147,63 @@ export default function Dashboard() {
       <div className="dashboard-container" style={{ width: '100%', marginTop: '10px' }}>
         
         {/* Metrics Grid */}
-        <div className="metrics-grid">
-          <div className="glass-panel metric-card">
+        <div className="metrics-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
+          <div className="glass-panel metric-card" style={{ borderTop: '3px solid var(--color-primary)' }}>
             <div className="metric-info">
-              <span className="metric-label">Total Cloud Calls Handled</span>
-              <span className="metric-value">{calls.length}</span>
+              <span className="metric-label" style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px' }}>Incoming Calls</span>
+              <span className="metric-value" style={{ fontSize: '32px' }}>{calls.length}</span>
             </div>
             <div className="metric-icon" style={{ background: 'var(--color-primary-glow)', color: 'var(--color-primary)' }}>
               <Phone size={24} />
             </div>
           </div>
 
-          <div className="glass-panel metric-card">
+          <div className="glass-panel metric-card" style={{ borderTop: '3px solid #FF9800' }}>
             <div className="metric-info">
-              <span className="metric-label">VIP Clients Routed</span>
-              <span className="metric-value">
-                {calls.filter(c => c.category === 'VIP Lead').length}
+              <span className="metric-label" style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px' }}>Warm Reply</span>
+              <span className="metric-value" style={{ fontSize: '32px' }}>
+                {calls.filter(c => c.lead_temperature === 'Warm').length}
               </span>
             </div>
-            <div className="metric-icon" style={{ background: 'var(--color-vip-glow)', color: 'var(--color-vip)' }}>
+            <div className="metric-icon" style={{ background: 'rgba(255,152,0,0.1)', color: '#FF9800' }}>
+              <Activity size={24} />
+            </div>
+          </div>
+
+          <div className="glass-panel metric-card" style={{ borderTop: '3px solid #2196F3' }}>
+            <div className="metric-info">
+              <span className="metric-label" style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px' }}>Cold Reply</span>
+              <span className="metric-value" style={{ fontSize: '32px' }}>
+                {calls.filter(c => c.lead_temperature === 'Cold').length}
+              </span>
+            </div>
+            <div className="metric-icon" style={{ background: 'rgba(33,150,243,0.1)', color: '#2196F3' }}>
               <Users size={24} />
             </div>
           </div>
 
-          <div className="glass-panel metric-card">
+          <div className="glass-panel metric-card" style={{ borderTop: '3px solid var(--color-spam)' }}>
             <div className="metric-info">
-              <span className="metric-label">Spam Blocked</span>
-              <span className="metric-value">
-                {calls.filter(c => c.category === 'Spam').length}
+              <span className="metric-label" style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px' }}>Spam Calls</span>
+              <span className="metric-value" style={{ fontSize: '32px' }}>
+                {calls.filter(c => c.status === 'Spam' || c.category === 'Spam').length}
               </span>
             </div>
             <div className="metric-icon" style={{ background: 'var(--color-spam-glow)', color: 'var(--color-spam)' }}>
               <ShieldAlert size={24} />
             </div>
           </div>
-
-          <div className="glass-panel metric-card">
-            <div className="metric-info">
-              <span className="metric-label">System Health</span>
-              <span className="metric-value" style={{ fontSize: '18px', marginTop: '8px' }}>
-                <div className="status-indicator">
-                  <span className={`status-dot dot-active`} />
-                  All Systems Operational
-                </div>
-              </span>
-            </div>
-            <div className="metric-icon" style={{ background: 'var(--color-lead-glow)', color: 'var(--color-lead)' }}>
-              <Activity size={24} />
-            </div>
-          </div>
         </div>
 
-        {/* Tables & Logs Row */}
-        <div className="detail-panels-grid">
+        {/* Tables Row */}
+        <div style={{ marginTop: '24px' }}>
           
           {/* Main CRM Table */}
-          <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', minHeight: '500px' }}>
-            <div className="panel-header">
-              <span className="panel-title">
-                <FileText size={18} style={{ color: 'var(--color-primary)' }} /> 
-                Cloud Call History & Analytics
-              </span>
-              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                Listening for incoming webhooks on port 3000...
+          <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', minHeight: '500px', boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.37)' }}>
+            <div className="panel-header" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '16px' }}>
+              <span className="panel-title" style={{ fontSize: '18px', fontWeight: '600' }}>
+                <FileText size={20} style={{ color: 'var(--color-primary)' }} /> 
+                Recent Leads & Call Analytics
               </span>
             </div>
 
@@ -227,18 +211,18 @@ export default function Dashboard() {
               {calls.length === 0 ? (
                 <div className="no-calls-placeholder" style={{ padding: '80px' }}>
                   <AlertCircle size={32} />
-                  <span>No calls received yet. Waiting for telecom webhooks.</span>
+                  <span>No calls received yet.</span>
                 </div>
               ) : (
-                <table className="logs-table" style={{ fontSize: '14px' }}>
+                <table className="logs-table" style={{ fontSize: '14px', width: '100%' }}>
                   <thead>
                     <tr>
                       <th>Caller Details</th>
                       <th>Product Wanted</th>
                       <th>Color & Qty</th>
-                      <th>Sample?</th>
+                      <th>Recording</th>
                       <th>Temperature</th>
-                      <th>Classification</th>
+                      <th>Status</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -267,7 +251,13 @@ export default function Dashboard() {
                           <span>{c.color || '-'} / {c.quantity || '-'}</span>
                         </td>
                         <td>
-                          {c.wants_sample && <span className="badge badge-sample" style={{ fontSize: '10px' }}>Requested Sample</span>}
+                          {c.recording_url ? (
+                            <button className="btn btn-primary" style={{ padding: '4px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <Volume2 size={12} /> Play
+                            </button>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Processing...</span>
+                          )}
                         </td>
                         <td>
                           {c.lead_temperature === 'Warm' ? (
@@ -290,43 +280,9 @@ export default function Dashboard() {
               )}
             </div>
           </div>
-
-          {/* Timeline Feed */}
-          <div className="glass-panel live-feed-panel">
-            <div className="panel-header">
-              <span className="panel-title">
-                <MessageSquare size={18} style={{ color: 'var(--color-lead)' }} /> 
-                Cloud Auto-Follow-Ups
-              </span>
-            </div>
-            <div className="live-feed-content">
-              {followUpLogs.length === 0 ? (
-                <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                  No automated actions dispatched yet. When VIP leads are detected via webhook, escalation notices will appear here.
-                </div>
-              ) : (
-                followUpLogs.map((log) => (
-                  <div key={log.id} className="feed-item" style={{ padding: '16px' }}>
-                    <div className="feed-item-icon">
-                      {log.type === 'WhatsApp' ? (
-                        <MessageSquare size={18} style={{ color: 'var(--color-lead)' }} />
-                      ) : log.type === 'Email' ? (
-                        <Volume2 size={18} style={{ color: 'var(--color-support)' }} />
-                      ) : (
-                        <RefreshCw size={18} style={{ color: 'var(--color-vip)' }} />
-                      )}
-                    </div>
-                    <div className="feed-item-body">
-                      <strong style={{ fontSize: '13px' }}>{log.type} Dispatched</strong>
-                      <p style={{ color: 'var(--text-secondary)', fontSize: '12px', marginTop: '2px' }}>{log.message}</p>
-                      <span className="feed-item-time" style={{ fontSize: '11px', marginTop: '4px' }}>{log.time}</span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
         </div>
+
+
 
         {/* Expanded Transcript details */}
         {selectedCall && (
