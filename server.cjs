@@ -169,24 +169,45 @@ app.get('/api/leads', authenticateToken, async (req, res) => {
   try {
     const leads = await db.getLeads(req.user.id);
     
+    const twilioClient = (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) 
+      ? require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN) 
+      : null;
+
     // Map the DB schema to the frontend dashboard format
-    const formattedLeads = leads.map(lead => ({
-      id: lead.twilio_call_sid ? lead.twilio_call_sid.substring(0, 9) : `CALL-${lead.id}`,
-      callerName: lead.name || "Unknown",
-      company: lead.city ? `${lead.city}, ${lead.state || ''}` : "Unknown Location",
-      phone: lead.contact_number || lead.caller_number,
-      time: new Date(lead.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      duration: "Completed",
-      category: lead.status || "Warm Lead",
-      status: "Completed",
-      summary: lead.highlights || "Call completed.",
-      score: lead.name ? 85 : 50,
-      sentiment: "neutral",
-      product_wanted: lead.product_wanted || "-",
-      color: lead.color || "-",
-      quantity: lead.quantity || "-",
-      wants_sample: lead.wants_sample ? "Yes" : "No",
-      transcript: typeof lead.transcript === 'string' ? JSON.parse(lead.transcript) : (lead.transcript || [])
+    const formattedLeads = await Promise.all(leads.map(async lead => {
+      let recUrl = lead.recording_url;
+      
+      // Auto-fetch missing recordings if tunnel crashed
+      if (!recUrl && twilioClient && lead.twilio_call_sid && lead.twilio_call_sid.startsWith('CA')) {
+        try {
+          const recordings = await twilioClient.recordings.list({ callSid: lead.twilio_call_sid, limit: 1 });
+          if (recordings && recordings.length > 0) {
+            recUrl = `https://api.twilio.com${recordings[0].uri}`.replace('.json', '.mp3');
+            // Background update the DB
+            db.updateLeadRecording(lead.twilio_call_sid, recUrl).catch(() => {});
+          }
+        } catch(e) { console.error('[TWILIO] Fallback fetch failed', e.message); }
+      }
+
+      return {
+        id: lead.twilio_call_sid ? lead.twilio_call_sid.substring(0, 9) : `CALL-${lead.id}`,
+        callerName: lead.name || "Unknown",
+        company: lead.city ? `${lead.city}, ${lead.state || ''}` : "Unknown Location",
+        phone: lead.contact_number || lead.caller_number,
+        time: new Date(lead.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        duration: "Completed",
+        category: lead.status || "Warm Lead",
+        status: "Completed",
+        summary: lead.highlights || "Call completed.",
+        score: lead.name ? 85 : 50,
+        sentiment: "neutral",
+        product_wanted: lead.product_wanted || "-",
+        color: lead.color || "-",
+        quantity: lead.quantity || "-",
+        wants_sample: lead.wants_sample ? "Yes" : "No",
+        recording_url: recUrl || null,
+        transcript: typeof lead.transcript === 'string' ? JSON.parse(lead.transcript) : (lead.transcript || [])
+      };
     }));
     
     res.json(formattedLeads);
@@ -195,6 +216,29 @@ app.get('/api/leads', authenticateToken, async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch leads' });
   }
 });
+
+// Proxy endpoint to play Twilio recordings securely without browser auth prompts
+app.get('/api/play-recording', async (req, res) => {
+  const audioUrl = req.query.url;
+  if (!audioUrl) return res.status(400).send('Missing url parameter');
+  
+  try {
+    const auth = Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`).toString('base64');
+    const response = await fetch(audioUrl, {
+      headers: { 'Authorization': `Basic ${auth}` }
+    });
+    
+    if (!response.ok) return res.status(response.status).send('Failed to fetch audio');
+    
+    res.setHeader('Content-Type', 'audio/mpeg');
+    const { Readable } = require('stream');
+    Readable.fromWeb(response.body).pipe(res);
+  } catch (err) {
+    console.error('[API ERROR] Audio proxy error:', err.message);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
 // 3. Super Admin Endpoint to fetch all clients and their metrics
 app.get('/api/superadmin/clients', async (req, res) => {
   try {
