@@ -349,9 +349,8 @@ wss.on('connection', (ws, req) => {
   let systemInstruction = `You are a helpful AI assistant. Answer briefly.`;
   let chatHistory = [];
 
-  // Send the initial greeting via TTS directly (not through Gemini)
   const sendInitialGreeting = async () => {
-    const greeting = `Namaste! Aapka swagat hai ${companyName} mein. Main aapki kya madad kar sakti hu? Tame kem chho?`;
+    const greeting = `Welcome to ${companyName}. For English, say English. Hindi ke liye, Hindi bolein. Gujarati mate, Gujarati bolo.`;
     console.log(`[AI GREETING] ${greeting}`);
     callTranscript.push({ speaker: 'AI Agent', text: greeting });
     await speakText(greeting);
