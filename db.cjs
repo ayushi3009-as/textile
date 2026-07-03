@@ -40,7 +40,19 @@ const initDB = async () => {
       )
     `);
     
-    console.log('[DB] Leads table ensured');
+    // Create demo_requests table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS demo_requests (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        phone VARCHAR(50),
+        company VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    console.log('[DB] Demo requests table ensured');
     client.release();
   } catch (err) {
     console.error('[DB ERROR] Failed to initialize database:', err);
@@ -214,6 +226,31 @@ const updateLeadTemperature = async (leadId, temperature) => {
   }
 };
 
+const saveDemoRequest = async (data) => {
+  try {
+    const client = await pool.connect();
+    const result = await client.query(
+      'INSERT INTO demo_requests (name, email, phone, company) VALUES ($1, $2, $3, $4) RETURNING *',
+      [data.name, data.email, data.phone, data.company]
+    );
+    client.release();
+    return result.rows[0];
+  } catch (err) {
+    throw err;
+  }
+};
+
+const getDemoRequests = async () => {
+  try {
+    const client = await pool.connect();
+    const result = await client.query('SELECT * FROM demo_requests ORDER BY created_at DESC');
+    client.release();
+    return result.rows;
+  } catch (err) {
+    throw err;
+  }
+};
+
 module.exports = {
   initDB,
   saveLead,
@@ -224,5 +261,7 @@ module.exports = {
   getAllClientsStats,
   updateClientPlanDate,
   updateLeadRecording,
-  updateLeadTemperature
+  updateLeadTemperature,
+  saveDemoRequest,
+  getDemoRequests
 };

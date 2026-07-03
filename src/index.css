@@ -2,14 +2,14 @@
 @import url('./pages/auth.css');
 
 :root {
-  --bg-primary: #0a0b10;
-  --bg-secondary: #11131e;
-  --bg-tertiary: #171a2a;
-  --border-color: rgba(255, 255, 255, 0.06);
-  --border-hover: rgba(255, 255, 255, 0.12);
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f5f9;
+  --border-color: rgba(0, 0, 0, 0.08);
+  --border-hover: rgba(0, 0, 0, 0.15);
   
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
   --text-muted: #64748b;
   
   --color-primary: #6366f1; /* Indigo */
@@ -26,9 +26,9 @@
   --font-display: 'Outfit', 'Plus Jakarta Sans', sans-serif;
   --font-sans: 'Plus Jakarta Sans', sans-serif;
   
-  --glass-bg: rgba(17, 19, 30, 0.7);
-  --glass-border: rgba(255, 255, 255, 0.05);
-  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(0, 0, 0, 0.05);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
   --glass-blur: blur(12px);
 }
 
@@ -143,11 +143,11 @@ body {
   width: 100%;
   max-width: 360px;
   height: 640px;
-  background: #0f1016;
-  border: 10px solid #27272a;
+  background: #ffffff;
+  border: 10px solid #e2e8f0;
   border-radius: 40px;
   position: relative;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -160,7 +160,7 @@ body {
   transform: translateX(-50%);
   width: 130px;
   height: 25px;
-  background: #27272a;
+  background: #e2e8f0;
   border-bottom-left-radius: 16px;
   border-bottom-right-radius: 16px;
   z-index: 10;
@@ -173,14 +173,14 @@ body {
 .phone-speaker {
   width: 40px;
   height: 4px;
-  background: #52525b;
+  background: #cbd5e1;
   border-radius: 2px;
 }
 
 .phone-camera {
   width: 8px;
   height: 8px;
-  background: #3f3f46;
+  background: #94a3b8;
   border-radius: 50%;
 }
 
@@ -191,7 +191,7 @@ body {
   flex-direction: column;
   justify-content: space-between;
   position: relative;
-  background: radial-gradient(circle at center, #1b1c2b 0%, #0d0e15 100%);
+  background: radial-gradient(circle at center, #ffffff 0%, #f1f5f9 100%);
 }
 
 .phone-screen::before {
@@ -326,7 +326,7 @@ body {
   width: 100%;
   height: 100%;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.01);
+  background: rgba(0, 0, 0, 0.02);
 }
 
 .speaker-indicator-text {
@@ -392,7 +392,7 @@ body {
 }
 
 .btn-secondary:hover {
-  background: rgba(255,255,255,0.05);
+  background: var(--bg-secondary);
   border-color: var(--border-hover);
 }
 
@@ -549,7 +549,7 @@ body {
 }
 
 .logs-table tr:hover {
-  background-color: rgba(255, 255, 255, 0.015);
+  background-color: rgba(0, 0, 0, 0.02);
 }
 
 .caller-cell {
@@ -657,7 +657,7 @@ body {
   gap: 12px;
   padding: 12px;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   font-size: 12px;
 }

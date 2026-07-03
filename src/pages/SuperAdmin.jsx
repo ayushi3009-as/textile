@@ -6,6 +6,8 @@ export default function SuperAdmin() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
   const [clients, setClients] = useState([]);
+  const [demoRequests, setDemoRequests] = useState([]);
+  const [activeTab, setActiveTab] = useState('clients'); // 'clients' or 'requests'
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -14,6 +16,7 @@ export default function SuperAdmin() {
     if (password === 'microtechnique2026') {
       setIsAuthenticated(true);
       fetchClients();
+      fetchDemoRequests();
     } else {
       alert('Invalid super admin password');
     }
@@ -30,6 +33,17 @@ export default function SuperAdmin() {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchDemoRequests = async () => {
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || '';
+      const response = await fetch(`${API_URL}/api/superadmin/demo-requests`);
+      const data = await response.json();
+      setDemoRequests(data);
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -99,16 +113,30 @@ export default function SuperAdmin() {
       </header>
 
       <div className="glass-panel" style={{ padding: '20px' }}>
-        <div className="panel-header" style={{ marginBottom: '20px' }}>
-          <span className="panel-title">
-            <Building size={18} style={{ color: 'var(--color-primary)' }} /> 
-            Registered SaaS Companies
-          </span>
+        <div className="panel-header" style={{ marginBottom: '20px', display: 'flex', gap: '16px' }}>
+          <button 
+            onClick={() => setActiveTab('clients')}
+            style={{ 
+              background: activeTab === 'clients' ? 'var(--color-primary-glow)' : 'transparent',
+              color: activeTab === 'clients' ? 'var(--color-primary)' : 'var(--text-secondary)',
+              border: 'none', padding: '10px 16px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600
+            }}>
+            <Building size={18} /> Registered SaaS Companies
+          </button>
+          <button 
+            onClick={() => setActiveTab('requests')}
+            style={{ 
+              background: activeTab === 'requests' ? 'var(--color-lead-glow)' : 'transparent',
+              color: activeTab === 'requests' ? 'var(--color-lead)' : 'var(--text-secondary)',
+              border: 'none', padding: '10px 16px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600
+            }}>
+            <Users size={18} /> Demo Requests ({demoRequests.length})
+          </button>
         </div>
 
         {loading ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>Loading client data...</div>
-        ) : (
+          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>Loading data...</div>
+        ) : activeTab === 'clients' ? (
           <div className="logs-table-container">
             <table className="logs-table" style={{ fontSize: '15px' }}>
               <thead>
@@ -178,6 +206,49 @@ export default function SuperAdmin() {
                     </tr>
                   );
                 })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="logs-table-container">
+            <table className="logs-table" style={{ fontSize: '15px' }}>
+              <thead>
+                <tr>
+                  <th>Request Details</th>
+                  <th>Contact Info</th>
+                  <th>Date Requested</th>
+                </tr>
+              </thead>
+              <tbody>
+                {demoRequests.map((req) => (
+                  <tr key={req.id}>
+                    <td>
+                      <div className="caller-cell">
+                        <span className="caller-name">{req.name}</span>
+                        <span className="caller-company">{req.company}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="caller-cell">
+                        <span className="caller-name">{req.email}</span>
+                        <span className="caller-company">{req.phone}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)' }}>
+                        <Clock size={16} />
+                        <span>{formatDate(req.created_at)}</span>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {demoRequests.length === 0 && (
+                  <tr>
+                    <td colSpan="3" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                      No demo requests yet.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

@@ -289,6 +289,27 @@ app.put('/api/superadmin/clients/:id/plan', async (req, res) => {
   }
 });
 
+// Demo Requests Endpoints
+app.post('/api/demo-requests', async (req, res) => {
+  try {
+    const request = await db.saveDemoRequest(req.body);
+    res.json(request);
+  } catch (err) {
+    console.error('[API ERROR] /api/demo-requests:', err);
+    res.status(500).json({ error: 'Failed to submit request' });
+  }
+});
+
+app.get('/api/superadmin/demo-requests', async (req, res) => {
+  try {
+    const requests = await db.getDemoRequests();
+    res.json(requests);
+  } catch (err) {
+    console.error('[API ERROR] /api/superadmin/demo-requests:', err);
+    res.status(500).json({ error: 'Failed to fetch requests' });
+  }
+});
+
 // 4. Test Endpoint to simulate a call for the dashboard
 app.get('/api/test-event', (req, res) => {
   const testCall = {
