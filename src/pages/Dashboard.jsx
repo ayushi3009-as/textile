@@ -134,6 +134,7 @@ export default function Dashboard() {
         </div>
         
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}> 
+          <button
             className="btn btn-secondary" 
             onClick={handleLogout}
             style={{ padding: '8px 12px', borderColor: 'rgba(239,68,68,0.2)', color: 'var(--color-spam)' }}
