@@ -79,6 +79,9 @@ export default function Login() {
         <p className="auth-footer">
           Don't have an account? <Link to="/register" className="auth-link">Create one</Link>
         </p>
+        <p style={{ marginTop: '10px', fontSize: '11px', textAlign: 'center' }}>
+          <a href="/superadmin" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Microtechnique Admin Login</a>
+        </p>
       </div>
     </div>
   );

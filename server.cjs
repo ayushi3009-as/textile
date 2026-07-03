@@ -179,6 +179,19 @@ app.get('/api/superadmin/clients', async (req, res) => {
   }
 });
 
+// 4. Super Admin Endpoint to update a client's plan expiration date
+app.put('/api/superadmin/clients/:id/plan', async (req, res) => {
+  const { id } = req.params;
+  const { newDate } = req.body;
+  try {
+    const updatedClient = await db.updateClientPlanDate(id, newDate);
+    res.json(updatedClient);
+  } catch (err) {
+    console.error('[API ERROR] /api/superadmin/clients/:id/plan:', err);
+    res.status(500).json({ error: 'Failed to update plan date' });
+  }
+});
+
 // 4. Test Endpoint to simulate a call for the dashboard
 app.get('/api/test-event', (req, res) => {
   const testCall = {

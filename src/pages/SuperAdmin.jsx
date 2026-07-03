@@ -148,6 +148,24 @@ export default function SuperAdmin() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: isExpired ? 'var(--color-spam)' : 'var(--text-secondary)' }}>
                           <Clock size={16} />
                           <span>{formatDate(client.plan_expires_at)}</span>
+                          <input 
+                            type="date"
+                            style={{ background: 'transparent', color: 'var(--text-primary)', border: '1px solid rgba(255,255,255,0.1)', padding: '2px 4px', borderRadius: '4px', fontSize: '11px', marginLeft: '10px' }}
+                            onChange={async (e) => {
+                              if (!e.target.value) return;
+                              try {
+                                const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+                                await fetch(`${API_URL}/api/superadmin/clients/${client.id}/plan`, {
+                                  method: 'PUT',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ newDate: e.target.value })
+                                });
+                                fetchClients();
+                              } catch (err) {
+                                console.error(err);
+                              }
+                            }}
+                          />
                         </div>
                       </td>
                       <td>

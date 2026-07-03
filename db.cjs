@@ -171,6 +171,20 @@ const getAllClientsStats = async () => {
   }
 };
 
+const updateClientPlanDate = async (clientId, newDate) => {
+  try {
+    const client = await pool.connect();
+    const result = await client.query(
+      'UPDATE clients SET plan_expires_at = $1 WHERE id = $2 RETURNING *',
+      [newDate, clientId]
+    );
+    client.release();
+    return result.rows[0];
+  } catch (err) {
+    throw err;
+  }
+};
+
 module.exports = {
   initDB,
   saveLead,
@@ -178,5 +192,6 @@ module.exports = {
   createClient,
   getClientByEmail,
   getClientByTwilioNumber,
-  getAllClientsStats
+  getAllClientsStats,
+  updateClientPlanDate
 };
