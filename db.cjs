@@ -200,6 +200,20 @@ const updateLeadRecording = async (callSid, recordingUrl) => {
   }
 };
 
+const updateLeadTemperature = async (leadId, temperature) => {
+  try {
+    const client = await pool.connect();
+    const result = await client.query(
+      'UPDATE leads SET lead_temperature = $1 WHERE id = $2 RETURNING *',
+      [temperature, leadId]
+    );
+    client.release();
+    return result.rows[0];
+  } catch (err) {
+    throw err;
+  }
+};
+
 module.exports = {
   initDB,
   saveLead,
@@ -209,5 +223,6 @@ module.exports = {
   getClientByTwilioNumber,
   getAllClientsStats,
   updateClientPlanDate,
-  updateLeadRecording
+  updateLeadRecording,
+  updateLeadTemperature
 };

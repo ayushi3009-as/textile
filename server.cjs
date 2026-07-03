@@ -191,6 +191,7 @@ app.get('/api/leads', authenticateToken, async (req, res) => {
 
       return {
         id: lead.twilio_call_sid ? lead.twilio_call_sid.substring(0, 9) : `CALL-${lead.id}`,
+        db_id: lead.id,
         callerName: lead.name || "Unknown",
         company: lead.city ? `${lead.city}, ${lead.state || ''}` : "Unknown Location",
         phone: lead.contact_number || lead.caller_number,
@@ -206,6 +207,7 @@ app.get('/api/leads', authenticateToken, async (req, res) => {
         quantity: lead.quantity || "-",
         wants_sample: lead.wants_sample ? "Yes" : "No",
         recording_url: recUrl || null,
+        lead_temperature: lead.lead_temperature || "UNKNOWN",
         transcript: typeof lead.transcript === 'string' ? JSON.parse(lead.transcript) : (lead.transcript || [])
       };
     }));
@@ -236,6 +238,29 @@ app.get('/api/play-recording', async (req, res) => {
   } catch (err) {
     console.error('[API ERROR] Audio proxy error:', err.message);
     res.status(500).send('Internal Server Error');
+  }
+});
+
+// Endpoint to update lead temperature
+app.put('/api/leads/:id/temperature', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const { temperature } = req.body;
+  try {
+    const updatedLead = await db.updateLeadTemperature(id, temperature);
+    
+    // Broadcast update via SSE so dashboard updates in real-time
+    sendEventToAll({ 
+      type: 'update_call', 
+      data: { 
+        db_id: updatedLead.id, 
+        lead_temperature: updatedLead.lead_temperature 
+      } 
+    });
+    
+    res.json(updatedLead);
+  } catch (err) {
+    console.error('[API ERROR] /api/leads/:id/temperature:', err);
+    res.status(500).json({ error: 'Failed to update temperature' });
   }
 });
 
@@ -326,31 +351,34 @@ wss.on('connection', (ws, req) => {
 
   // Send the initial greeting via TTS directly (not through Gemini)
   const sendInitialGreeting = async () => {
-    const greeting = `Hello! Thank you for calling ${companyName}. How can I help you today?`;
+    const greeting = `Namaste! Aapka swagat hai ${companyName} mein. Main aapki kya madad kar sakti hu? Tame kem chho?`;
     console.log(`[AI GREETING] ${greeting}`);
     callTranscript.push({ speaker: 'AI Agent', text: greeting });
     await speakText(greeting);
   };
 
-  // Convert text to speech and send to Twilio
+  // Convert text to speech and send to Twilio (using ElevenLabs)
   const speakText = async (text) => {
     try {
       isAISpeaking = true;
 
       const response = await fetch(
-        `https://api.deepgram.com/v1/speak?model=aura-asteria-en&encoding=mulaw&sample_rate=8000&container=none`,
+        `https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM?output_format=ulaw_8000`,
         {
           method: 'POST',
           headers: {
-            'Authorization': `Token ${process.env.DEEPGRAM_API_KEY}`,
+            'xi-api-key': process.env.ELEVENLABS_API_KEY,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ text: text }),
+          body: JSON.stringify({ 
+            text: text, 
+            model_id: "eleven_multilingual_v2" 
+          }),
         }
       );
 
       if (!response.ok) {
-        throw new Error(`Deepgram TTS error: ${response.status} ${response.statusText}`);
+        throw new Error(`ElevenLabs TTS error: ${response.status} ${response.statusText}`);
       }
 
       const audioBuffer = Buffer.from(await response.arrayBuffer());
@@ -416,7 +444,7 @@ wss.on('connection', (ws, req) => {
   const setupDeepgramSTT = async () => {
     try {
       const WebSocket = require('ws');
-      const url = `wss://api.deepgram.com/v1/listen?model=nova-2&language=en-IN&smart_format=true&encoding=mulaw&sample_rate=8000&channels=1&endpointing=400&interim_results=true&utterance_end_ms=1000`;
+      const url = `wss://api.deepgram.com/v1/listen?model=nova-2&language=hi&smart_format=true&encoding=mulaw&sample_rate=8000&channels=1&endpointing=400&interim_results=true&utterance_end_ms=2000`;
       
       dgConnection = new WebSocket(url, {
         headers: {
@@ -502,7 +530,9 @@ wss.on('connection', (ws, req) => {
              systemInstruction = clientDb.system_prompt;
           } else {
              // Fallback prompt for new clients
-             systemInstruction = `You are a helpful phone assistant for ${companyName}. 
+             systemInstruction = `You are a helpful phone assistant for ${companyName}.
+Start the call by asking the user: "Press 1 for English, Press 2 for Hindi, Press 3 for Gujarati" (or ask them to say the number). Strictly converse in the language they select.
+Speak at a slow, measured, and calm pace. Give the user plenty of time to respond.
 CRITICAL RULE: YOU MUST ASK EXACTLY ONE QUESTION PER RESPONSE. DO NOT ask multiple questions. DO NOT use bullet points or numbered lists. DO NOT say "I have a few questions."
 
 Your goal is to collect the following information in order. Ask the next question naturally ONLY after they answer the previous one:

@@ -83,6 +83,9 @@ export default function Dashboard() {
         else if (payload.type === 'follow_up') {
           setFollowUpLogs(prev => [payload.data, ...prev]);
         }
+        else if (payload.type === 'update_call') {
+          setCalls(prev => prev.map(c => c.db_id === payload.data.db_id ? { ...c, lead_temperature: payload.data.lead_temperature } : c));
+        }
       } catch (err) {
         console.error("SSE parse error", err);
       }
@@ -97,6 +100,26 @@ export default function Dashboard() {
       eventSource.close();
     };
   }, []);
+
+  const handleUpdateTemperature = async (e, dbId, temp) => {
+    e.stopPropagation(); // prevent row click
+    if (!dbId) return;
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      await fetch(`${API_URL}/api/leads/${dbId}/temperature`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ temperature: temp })
+      });
+      // Optimistic update
+      setCalls(prev => prev.map(c => c.db_id === dbId ? { ...c, lead_temperature: temp } : c));
+    } catch (err) {
+      console.error("Failed to update temperature", err);
+    }
+  };
 
   const clearLogs = () => {
     setCalls([]);
@@ -243,7 +266,7 @@ export default function Dashboard() {
                       >
                         <td>
                           <div className="caller-cell">
-                            <span className="caller-name">{c.name || 'Unknown Caller'}</span>
+                            <span className="caller-name">{c.callerName || 'Unknown Caller'}</span>
                             <span className="caller-company">{c.caller_number || c.phone}</span>
                           </div>
                         </td>
@@ -263,13 +286,28 @@ export default function Dashboard() {
                           )}
                         </td>
                         <td>
-                          {c.lead_temperature === 'Warm' ? (
-                            <span className="badge" style={{ background: 'rgba(255, 152, 0, 0.1)', color: '#FF9800', border: '1px solid rgba(255,152,0,0.3)' }}>🔥 Warm</span>
-                          ) : c.lead_temperature === 'Cold' ? (
-                            <span className="badge" style={{ background: 'rgba(33, 150, 243, 0.1)', color: '#2196F3', border: '1px solid rgba(33,150,243,0.3)' }}>❄️ Cold</span>
-                          ) : (
-                            <span className="badge" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-secondary)' }}>Unknown</span>
-                          )}
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <button 
+                              onClick={(e) => handleUpdateTemperature(e, c.db_id, 'Warm')}
+                              style={{ 
+                                background: c.lead_temperature === 'Warm' ? 'rgba(255, 152, 0, 0.2)' : 'rgba(255,255,255,0.05)', 
+                                color: c.lead_temperature === 'Warm' ? '#FF9800' : 'var(--text-secondary)', 
+                                border: c.lead_temperature === 'Warm' ? '1px solid rgba(255,152,0,0.5)' : '1px solid rgba(255,255,255,0.1)',
+                                padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: '500'
+                              }}>
+                              🔥 Warm
+                            </button>
+                            <button 
+                              onClick={(e) => handleUpdateTemperature(e, c.db_id, 'Cold')}
+                              style={{ 
+                                background: c.lead_temperature === 'Cold' ? 'rgba(33, 150, 243, 0.2)' : 'rgba(255,255,255,0.05)', 
+                                color: c.lead_temperature === 'Cold' ? '#2196F3' : 'var(--text-secondary)', 
+                                border: c.lead_temperature === 'Cold' ? '1px solid rgba(33,150,243,0.5)' : '1px solid rgba(255,255,255,0.1)',
+                                padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: '500'
+                              }}>
+                              ❄️ Cold
+                            </button>
+                          </div>
                         </td>
                         <td>
                           <span className={`badge badge-${c.status?.toLowerCase().replace(' ', '')}`}>
