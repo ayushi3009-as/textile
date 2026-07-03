@@ -119,22 +119,48 @@ app.post('/api/login', async (req, res) => {
 });
 
 // 2. Twilio TwiML Endpoint (When call starts)
-app.post('/twiml', (req, res) => {
-  const callerNumber = req.body.From || 'Unknown';
-  console.log(`[TWILIO] Incoming call from: ${callerNumber}`);
+app.post('/twiml', async (req, res) => {
+  const twilioNumber = req.body.To;
+  console.log(`[TWILIO] Incoming call to ${twilioNumber}`);
   
-  // Instruct Twilio to connect to our WebSocket and stream live audio
+  // Start recording the call asynchronously using Twilio REST API
+  if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
+    try {
+      const twilioClient = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+      twilioClient.calls(req.body.CallSid).recordings.create({
+        recordingChannels: 'dual',
+        recordingStatusCallback: `https://${req.get('host')}/api/recording-status`,
+        recordingStatusCallbackEvent: ['completed']
+      }).catch(err => console.error('[TWILIO] Failed to start recording:', err.message));
+    } catch (err) {
+      console.error('[TWILIO] Error initializing recording:', err);
+    }
+  }
+
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Connect>
     <Stream url="wss://${req.headers.host}/media-stream">
-      <Parameter name="callerNumber" value="${callerNumber}" />
-      <Parameter name="twilioNumber" value="${req.body.To || 'Unknown'}" />
+      <Parameter name="callerNumber" value="${req.body.From || 'Unknown'}" />
+      <Parameter name="twilioNumber" value="${twilioNumber || 'Unknown'}" />
     </Stream>
   </Connect>
 </Response>`;
-  res.type('text/xml');
-  res.send(twiml);
+  res.type('text/xml').send(twiml);
+});
+
+// Endpoint to receive Twilio Recording Status Callbacks
+app.post('/api/recording-status', express.urlencoded({ extended: true }), async (req, res) => {
+  const { CallSid, RecordingUrl } = req.body;
+  if (CallSid && RecordingUrl) {
+    console.log(`[TWILIO] Recording completed for Call ${CallSid}: ${RecordingUrl}`);
+    try {
+      await db.updateLeadRecording(CallSid, RecordingUrl);
+    } catch (err) {
+      console.error('[DB ERROR] Failed to save recording URL:', err);
+    }
+  }
+  res.sendStatus(200);
 });
 
 // 2.5 Fetch Leads for Dashboard

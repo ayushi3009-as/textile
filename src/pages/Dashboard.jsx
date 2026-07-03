@@ -245,7 +245,10 @@ export default function Dashboard() {
                     {calls.map((c) => (
                       <tr 
                         key={c.id} 
-                        onClick={() => setSelectedCall(c)}
+                        onClick={() => {
+                          setSelectedCall(c);
+                          setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 100);
+                        }}
                         style={{ 
                           cursor: 'pointer',
                           backgroundColor: selectedCall?.id === c.id ? 'rgba(255,255,255,0.04)' : 'transparent' 
@@ -367,6 +370,14 @@ export default function Dashboard() {
               {/* Transcripts (if provided by webhook) */}
               <div>
                 <h4 style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '12px' }}>Cloud Transcript</h4>
+                
+                {selectedCall.recording_url && (
+                  <div style={{ marginBottom: '16px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '8px' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>Call Recording</span>
+                    <audio src={selectedCall.recording_url} controls style={{ width: '100%', height: '32px' }} />
+                  </div>
+                )}
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(0,0,0,0.3)', padding: '20px', borderRadius: '12px', maxHeight: '280px', overflowY: 'auto' }}>
                   {selectedCall.transcript && selectedCall.transcript.length > 0 ? (
                     selectedCall.transcript.map((t, idx) => (

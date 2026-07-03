@@ -87,13 +87,13 @@ const saveLead = async (leadData, clientId = null) => {
 const getLeads = async (clientId = null) => {
   try {
     const client = await pool.connect();
-    let query = 'SELECT * FROM leads ORDER BY created_at DESC';
+    let query = 'SELECT * FROM leads';
     let params = [];
-    
     if (clientId) {
-      query = 'SELECT * FROM leads WHERE client_id = $1 ORDER BY created_at DESC';
-      params = [clientId];
+      query += ' WHERE client_id = $1';
+      params.push(clientId);
     }
+    query += ' ORDER BY created_at DESC';
     
     const result = await client.query(query, params);
     client.release();
@@ -185,6 +185,21 @@ const updateClientPlanDate = async (clientId, newDate) => {
   }
 };
 
+const updateLeadRecording = async (callSid, recordingUrl) => {
+  try {
+    const client = await pool.connect();
+    // Update any lead that has this call SID
+    const result = await client.query(
+      'UPDATE leads SET recording_url = $1 WHERE twilio_call_sid = $2 RETURNING *',
+      [recordingUrl, callSid]
+    );
+    client.release();
+    return result.rows[0];
+  } catch (err) {
+    throw err;
+  }
+};
+
 module.exports = {
   initDB,
   saveLead,
@@ -193,5 +208,6 @@ module.exports = {
   getClientByEmail,
   getClientByTwilioNumber,
   getAllClientsStats,
-  updateClientPlanDate
+  updateClientPlanDate,
+  updateLeadRecording
 };
