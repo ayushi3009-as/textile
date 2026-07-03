@@ -143,6 +143,7 @@ app.post('/twiml', async (req, res) => {
     <Stream url="wss://${req.headers.host}/media-stream">
       <Parameter name="callerNumber" value="${req.body.From || 'Unknown'}" />
       <Parameter name="twilioNumber" value="${twilioNumber || 'Unknown'}" />
+      <Parameter name="callSid" value="${req.body.CallSid || ''}" />
     </Stream>
   </Connect>
 </Response>`;
@@ -264,6 +265,7 @@ wss.on('connection', (ws, req) => {
   console.log('[WEBSOCKET] Twilio connected to media stream');
   
   let streamSid = null;
+  let callSid = null;
   let callerNumber = 'Unknown';
   let activeClientId = null;
   let companyName = 'Our Company';
@@ -442,9 +444,10 @@ wss.on('connection', (ws, req) => {
       
       if (msg.event === 'start') {
         streamSid = msg.start.streamSid;
+        callSid = msg.start.customParameters.callSid || null;
         callerNumber = msg.start.customParameters.callerNumber || 'Unknown';
         const twilioNumber = msg.start.customParameters.twilioNumber || 'Unknown';
-        console.log(`[TWILIO] Stream started: ${streamSid}, Caller: ${callerNumber}, Dialed: ${twilioNumber}`);
+        console.log(`[TWILIO] Stream started: ${streamSid}, CallSid: ${callSid}, Caller: ${callerNumber}, Dialed: ${twilioNumber}`);
         
         // --- MULTI-TENANCY LOOKUP ---
         const clientDb = await db.getClientByTwilioNumber(twilioNumber);
@@ -562,7 +565,7 @@ Return ONLY a raw JSON object with the following schema, and no other text:
           
           // Save to PostgreSQL Database
           const leadData = {
-            twilio_call_sid: streamSid || 'unknown',
+            twilio_call_sid: callSid || streamSid || 'unknown',
             caller_number: callerNumber,
             name: extracted.name,
             contact_number: extracted.contact_number,
