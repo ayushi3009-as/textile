@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 export default function Dashboard() {
   const [calls, setCalls] = useState([]);
@@ -33,7 +33,7 @@ export default function Dashboard() {
     const fetchLeads = async () => {
       if (!token) return;
       try {
-        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+        const API_URL = import.meta.env.VITE_API_URL || '';
         const response = await fetch(`${API_URL}/api/leads`, {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -63,7 +63,7 @@ export default function Dashboard() {
   // Connect to SSE Backend
   useEffect(() => {
     // We listen to the Express server running on port 3000
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const API_URL = import.meta.env.VITE_API_URL || '';
     const eventSource = new EventSource(`${API_URL}/api/events`);
     
     eventSource.onopen = () => {
@@ -105,7 +105,7 @@ export default function Dashboard() {
     e.stopPropagation(); // prevent row click
     if (!dbId) return;
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const API_URL = import.meta.env.VITE_API_URL || '';
       await fetch(`${API_URL}/api/leads/${dbId}/temperature`, {
         method: 'PUT',
         headers: {
@@ -130,7 +130,7 @@ export default function Dashboard() {
 
   const testWebhook = async () => {
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const API_URL = import.meta.env.VITE_API_URL || '';
       await fetch(`${API_URL}/api/test-event`);
     } catch (e) {
       alert("Failed to reach backend. Make sure server.js is running on port 3000.");

@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const http = require('http');
+const path = require('path');
 const WebSocket = require('ws');
 const { DeepgramClient } = require('@deepgram/sdk');
 const Groq = require('groq-sdk');
@@ -322,6 +323,15 @@ app.get('/api/health', (req, res) => {
     groq: !!process.env.GROQ_API_KEY,
     sseClients: sseClients.length 
   });
+});
+
+// 6. Catch-all for React Router frontend
+app.use((req, res, next) => {
+  if (req.method === 'GET' && !req.path.startsWith('/api')) {
+    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+  } else {
+    next();
+  }
 });
 
 // ========== WEBSOCKET ORCHESTRATOR ==========

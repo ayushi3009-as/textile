@@ -22,7 +22,7 @@ export default function SuperAdmin() {
   const fetchClients = async () => {
     setLoading(true);
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const API_URL = import.meta.env.VITE_API_URL || '';
       const response = await fetch(`${API_URL}/api/superadmin/clients`);
       const data = await response.json();
       setClients(data);
@@ -154,7 +154,7 @@ export default function SuperAdmin() {
                             onChange={async (e) => {
                               if (!e.target.value) return;
                               try {
-                                const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+                                const API_URL = import.meta.env.VITE_API_URL || '';
                                 await fetch(`${API_URL}/api/superadmin/clients/${client.id}/plan`, {
                                   method: 'PUT',
                                   headers: { 'Content-Type': 'application/json' },
