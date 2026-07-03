@@ -50,8 +50,8 @@ const initDB = async () => {
 const saveLead = async (leadData, clientId = null) => {
   try {
     const query = `
-      INSERT INTO leads (twilio_call_sid, caller_number, name, contact_number, city, state, status, highlights, transcript, client_id, product_wanted, color, quantity, wants_sample)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      INSERT INTO leads (twilio_call_sid, caller_number, name, contact_number, city, state, status, highlights, transcript, client_id, product_wanted, color, quantity, wants_sample, lead_temperature)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       RETURNING *
     `;
     const values = [
@@ -68,7 +68,8 @@ const saveLead = async (leadData, clientId = null) => {
       leadData.product_wanted,
       leadData.color,
       leadData.quantity,
-      leadData.wants_sample
+      leadData.wants_sample,
+      leadData.lead_temperature || 'Unknown'
     ];
     
     const client = await pool.connect();

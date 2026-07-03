@@ -237,6 +237,7 @@ export default function Dashboard() {
                       <th>Product Wanted</th>
                       <th>Color & Qty</th>
                       <th>Sample?</th>
+                      <th>Temperature</th>
                       <th>Classification</th>
                     </tr>
                   </thead>
@@ -252,24 +253,31 @@ export default function Dashboard() {
                       >
                         <td>
                           <div className="caller-cell">
-                            <span className="caller-name">{c.callerName}</span>
-                            <span className="caller-company">{c.company} • {c.phone}</span>
+                            <span className="caller-name">{c.name || 'Unknown Caller'}</span>
+                            <span className="caller-company">{c.caller_number || c.phone}</span>
                           </div>
                         </td>
                         <td>
-                          <span style={{ fontWeight: '500' }}>{c.product_wanted}</span>
+                          <span style={{ fontWeight: '500' }}>{c.product_wanted || 'N/A'}</span>
                         </td>
                         <td>
-                          <span>{c.color} / {c.quantity}</span>
+                          <span>{c.color || '-'} / {c.quantity || '-'}</span>
                         </td>
                         <td>
-                          <span className={`badge ${c.wants_sample === 'Yes' ? 'badge-interested' : 'badge-notinterested'}`}>
-                            {c.wants_sample}
-                          </span>
+                          {c.wants_sample && <span className="badge badge-sample" style={{ fontSize: '10px' }}>Requested Sample</span>}
                         </td>
                         <td>
-                          <span className={`badge badge-${c.category.toLowerCase().replace(' ', '')}`}>
-                            {c.category}
+                          {c.lead_temperature === 'Warm' ? (
+                            <span className="badge" style={{ background: 'rgba(255, 152, 0, 0.1)', color: '#FF9800', border: '1px solid rgba(255,152,0,0.3)' }}>🔥 Warm</span>
+                          ) : c.lead_temperature === 'Cold' ? (
+                            <span className="badge" style={{ background: 'rgba(33, 150, 243, 0.1)', color: '#2196F3', border: '1px solid rgba(33,150,243,0.3)' }}>❄️ Cold</span>
+                          ) : (
+                            <span className="badge" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-secondary)' }}>Unknown</span>
+                          )}
+                        </td>
+                        <td>
+                          <span className={`badge badge-${c.status?.toLowerCase().replace(' ', '')}`}>
+                            {c.status}
                           </span>
                         </td>
                       </tr>

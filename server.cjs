@@ -480,26 +480,34 @@ AI: Pastel is lovely. How much quantity do you need?`;
         const formattedDuration = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
 
         // Extract Lead Info and Save to DB via Groq
-        const fullTranscriptText = callTranscript.map(t => `${t.speaker}: ${t.text}`).join('\\n');
+        const fullTranscriptText = callTranscript.map(t => `${t.speaker}: ${t.text}`).join('\n');
         
-        const extractionPrompt = `Analyze the following call transcript and extract the details in valid JSON format.
-Keys required:
-- "name" (string or null)
-- "contact_number" (string or null)
-- "city" (string or null)
-- "state" (string or null)
-- "product_wanted" (string or null, what they want to buy)
-- "color" (string or null)
-- "quantity" (string or null)
-- "wants_sample" (boolean)
-- "status" (string, e.g. "Interested", "Not Interested", "Support", "Spam")
-- "highlights" (string, a 1-sentence summary of the call)
-
-Transcript:
-${fullTranscriptText}`;
+        const extractionPrompt = {
+          messages: [
+            {
+              role: "system",
+              content: `You are an expert AI data extractor. Analyze the call transcript and extract the key lead information.
+Return ONLY a raw JSON object with the following schema, and no other text:
+{
+  "name": "Full name if provided, else null",
+  "contact_number": "Phone number if provided, else null",
+  "city": "City if provided, else null",
+  "state": "State if provided, else null",
+  "product_wanted": "The product the user wants (e.g. premium cotton)",
+  "color": "The color the user wants (e.g. pastel)",
+  "quantity": "The quantity the user wants (e.g. 500 meters)",
+  "wants_sample": true or false,
+  "status": "Spam", "Interested", or "Not Interested",
+  "lead_temperature": "Warm" (if they engaged, wanted to buy, or asked for a sample) or "Cold" (if they were not interested, rude, or spam),
+  "highlights": "A short 1-sentence summary of the call"
+}`
+            },
+            { role: "user", content: `Transcript:\n${fullTranscriptText}` }
+          ]
+        };
 
         groq.chat.completions.create({
-          messages: [{ role: 'user', content: extractionPrompt }],
+          messages: extractionPrompt.messages,
           model: 'llama-3.1-8b-instant',
           response_format: { type: 'json_object' },
           temperature: 0.1
