@@ -119,15 +119,6 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// 2. Twilio TwiML Endpoint (When call starts)
-app.post('/twiml', async (req, res) => {
-  const twilioNumber = req.body.To;
-  console.log(`[TWILIO] Incoming call to ${twilioNumber}`);
-  
-  // Start recording the call asynchronously using Twilio REST API
-  if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
-    try {
-      const twilioClient = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
       twilioClient.calls(req.body.CallSid).recordings.create({
         recordingChannels: 'dual',
         recordingStatusCallback: `https://${req.get('host')}/api/recording-status`,
@@ -358,11 +349,11 @@ app.use((req, res, next) => {
 // ========== WEBSOCKET ORCHESTRATOR ==========
 
 wss.on('connection', (ws, req) => {
-  if (req.url !== '/media-stream') {
+  if (req.url !== '/media-stream' && req.url !== '/connection') {
     return ws.close();
   }
   
-  console.log('[WEBSOCKET] Twilio connected to media stream');
+  console.log('[WEBSOCKET] Telecom Provider (Exotel/Twilio) connected to media stream');
   
   let streamSid = null;
   let callSid = null;
@@ -413,7 +404,7 @@ wss.on('connection', (ws, req) => {
 
       const audioBuffer = Buffer.from(await response.arrayBuffer());
       
-      // Send audio in chunks to Twilio (160 bytes per chunk = 20ms of mulaw audio at 8kHz)
+      // Send audio in chunks to telecom provider (160 bytes per chunk = 20ms of mulaw audio at 8kHz)
       const CHUNK_SIZE = 160;
       for (let i = 0; i < audioBuffer.length; i += CHUNK_SIZE) {
         const chunk = audioBuffer.subarray(i, Math.min(i + CHUNK_SIZE, audioBuffer.length));
@@ -428,7 +419,7 @@ wss.on('connection', (ws, req) => {
         }
       }
 
-      // Send a mark event so Twilio tells us when audio is done playing
+      // Send a mark event so the telecom provider tells us when audio is done playing
       if (ws.readyState === WebSocket.OPEN && streamSid) {
         ws.send(JSON.stringify({
           event: 'mark',
@@ -539,20 +530,64 @@ wss.on('connection', (ws, req) => {
     }
   };
 
-  // ========== HANDLE TWILIO MESSAGES ==========
+  // ==========================================
+// TELECOM WEBHOOKS (EXOTEL / TWILIO)
+// ==========================================
+
+// 1. Twilio TwiML Endpoint
+app.post('/twiml', async (req, res) => {
+  try {
+    const VoiceResponse = require('twilio').twiml.VoiceResponse;
+    const twiml = new VoiceResponse();
+    const twilioNumber = req.body.To;
+    const callerNumber = req.body.From;
+    const callSid = req.body.CallSid;
+    
+    // Connect the call to our WebSocket stream
+    const connect = twiml.connect();
+    connect.stream({
+      url: `wss://${req.headers.host}/media-stream`,
+      name: 'texvibe-ai-stream'
+    }).parameter({ name: 'twilioNumber', value: twilioNumber })
+      .parameter({ name: 'callerNumber', value: callerNumber })
+      .parameter({ name: 'callSid', value: callSid });
+
+    res.type('text/xml');
+    res.send(twiml.toString());
+  } catch (err) {
+    console.error('[TWIML ERROR]', err);
+    res.status(500).send('Error');
+  }
+});
+
+// 2. Exotel uses the App Bazaar (Voicebot Applet) to connect directly to the WebSocket URL (wss://api.tivra.marketing/connection).
+// Therefore, we don't need an XML endpoint for Exotel, only for Twilio.
+
+  // ========== HANDLE TELECOM MESSAGES (Exotel AgentStream) ==========
   ws.on('message', async (message) => {
     try {
       const msg = JSON.parse(message);
       
       if (msg.event === 'start') {
         streamSid = msg.start.streamSid;
-        callSid = msg.start.customParameters.callSid || null;
-        callerNumber = msg.start.customParameters.callerNumber || 'Unknown';
-        const twilioNumber = msg.start.customParameters.twilioNumber || 'Unknown';
-        console.log(`[TWILIO] Stream started: ${streamSid}, CallSid: ${callSid}, Caller: ${callerNumber}, Dialed: ${twilioNumber}`);
+        // Handle both Twilio and Exotel parameter structures
+        callSid = msg.start.callSid || (msg.start.customParameters && msg.start.customParameters.callSid) || 'Unknown';
+        
+        let caller = 'Unknown';
+        let virtualNum = 'Unknown';
+        
+        if (msg.start.customParameters) {
+          caller = msg.start.customParameters.callerNumber || 'Unknown';
+          virtualNum = msg.start.customParameters.twilioNumber || msg.start.customParameters.virtualNumber || 'Unknown';
+        }
+        
+        callerNumber = caller;
+        const virtualNumber = virtualNum;
+        
+        console.log(`[TELECOM] Stream started: ${streamSid}, CallSid: ${callSid}, Caller: ${callerNumber}, Dialed: ${virtualNumber}`);
         
         // --- MULTI-TENANCY LOOKUP ---
-        const clientDb = await db.getClientByTwilioNumber(twilioNumber);
+        const clientDb = await db.getClientByTwilioNumber(virtualNumber);
         if (clientDb) {
           activeClientId = clientDb.id;
           companyName = clientDb.company_name || 'Our Company';
@@ -578,8 +613,9 @@ AI: Great, premium cotton is a great choice. What color do you prefer?
 User: Pastel.
 AI: Pastel is lovely. How much quantity do you need?`;
           }
+          }
         } else {
-          console.warn(`[WARNING] No client found for Twilio number: ${twilioNumber}. Using fallback.`);
+          console.warn(`[WARNING] No client found for Virtual Number: ${virtualNumber}. Using fallback.`);
         }
         
         chatHistory = [{ role: 'system', content: systemInstruction }];
@@ -599,10 +635,10 @@ AI: Pastel is lovely. How much quantity do you need?`;
         }
       }
       else if (msg.event === 'mark') {
-        // Twilio finished playing our audio
+        // Telecom finished playing our audio
         if (msg.mark && msg.mark.name === 'ai-speech-done') {
           isAISpeaking = false;
-          console.log('[TWILIO] AI speech playback completed');
+          console.log('[TELECOM] AI speech playback completed');
           
           // Process any pending user text
           if (pendingUserText && pendingUserText.trim()) {
@@ -613,8 +649,8 @@ AI: Pastel is lovely. How much quantity do you need?`;
           }
         }
       }
-      else if (msg.event === 'stop') {
-        console.log('[TWILIO] Call stopped.');
+      else if (msg.event === 'stop' || msg.event === 'closed') {
+        console.log('[TELECOM] Call stopped.');
         if (dgConnection && dgConnection.readyState === 1) {
           try { dgConnection.close(); } catch(e) {}
         }

@@ -88,7 +88,7 @@ export default function Register() {
           </div>
 
           <div className="auth-field">
-            <label className="auth-label">Twilio Phone Number (For your AI)</label>
+            <label className="auth-label">Exotel Virtual Phone Number (For your AI)</label>
             <input 
               type="text" 
               required

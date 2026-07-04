@@ -142,7 +142,7 @@ export default function SuperAdmin() {
               <thead>
                 <tr>
                   <th>Company Info</th>
-                  <th>Twilio Number</th>
+                  <th>Exotel Virtual Number</th>
                   <th>Total Leads Generated</th>
                   <th>Plan Expiration</th>
                   <th>Status</th>
