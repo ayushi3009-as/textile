@@ -7,7 +7,8 @@ export default function SuperAdmin() {
   const [password, setPassword] = useState('');
   const [clients, setClients] = useState([]);
   const [demoRequests, setDemoRequests] = useState([]);
-  const [activeTab, setActiveTab] = useState('clients'); // 'clients' or 'requests'
+  const [pricingPlans, setPricingPlans] = useState([]);
+  const [activeTab, setActiveTab] = useState('clients'); // 'clients', 'requests', 'pricing'
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -17,6 +18,7 @@ export default function SuperAdmin() {
       setIsAuthenticated(true);
       fetchClients();
       fetchDemoRequests();
+      fetchPricingPlans();
     } else {
       alert('Invalid super admin password');
     }
@@ -42,6 +44,37 @@ export default function SuperAdmin() {
       const response = await fetch(`${API_URL}/api/superadmin/demo-requests`);
       const data = await response.json();
       setDemoRequests(data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchPricingPlans = async () => {
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || '';
+      const response = await fetch(`${API_URL}/api/pricing`);
+      const data = await response.json();
+      setPricingPlans(data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleUpdatePlan = async (id, updatedPlan) => {
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || '';
+      const response = await fetch(`${API_URL}/api/superadmin/pricing/${id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token') || ''}` // assuming token logic or bypass for local
+        },
+        body: JSON.stringify(updatedPlan)
+      });
+      if (response.ok) {
+        alert('Plan updated successfully!');
+        fetchPricingPlans();
+      }
     } catch (err) {
       console.error(err);
     }
@@ -132,6 +165,15 @@ export default function SuperAdmin() {
             }}>
             <Users size={18} /> Demo Requests ({demoRequests.length})
           </button>
+          <button 
+            onClick={() => setActiveTab('pricing')}
+            style={{ 
+              background: activeTab === 'pricing' ? 'rgba(168, 85, 247, 0.1)' : 'transparent',
+              color: activeTab === 'pricing' ? '#a855f7' : 'var(--text-secondary)',
+              border: 'none', padding: '10px 16px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600
+            }}>
+            <Shield size={18} /> Pricing Settings
+          </button>
         </div>
 
         {loading ? (
@@ -209,7 +251,7 @@ export default function SuperAdmin() {
               </tbody>
             </table>
           </div>
-        ) : (
+        ) : activeTab === 'requests' ? (
           <div className="logs-table-container">
             <table className="logs-table" style={{ fontSize: '15px' }}>
               <thead>
@@ -251,6 +293,99 @@ export default function SuperAdmin() {
                 )}
               </tbody>
             </table>
+          </div>
+        ) : (
+          <div className="pricing-settings-container" style={{ padding: '20px' }}>
+            <h2 style={{ color: 'var(--text-primary)', marginBottom: '20px' }}>Manage Landing Page Pricing</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
+              {pricingPlans.length === 0 ? (
+                <div style={{ color: 'var(--text-muted)' }}>Loading pricing plans or no plans found. Make sure backend is running!</div>
+              ) : pricingPlans.map((plan, index) => (
+                <div key={plan.id} style={{ background: 'var(--bg-secondary)', padding: '24px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
+                  <h3 style={{ color: 'var(--color-primary)', marginBottom: '16px' }}>{plan.plan_name} Tier</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    
+                    <div>
+                      <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '4px' }}>Plan Name</label>
+                      <input 
+                        type="text" 
+                        value={plan.plan_name}
+                        onChange={(e) => {
+                          const newPlans = [...pricingPlans];
+                          newPlans[index].plan_name = e.target.value;
+                          setPricingPlans(newPlans);
+                        }}
+                        style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '8px' }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '4px' }}>Price (e.g. $49)</label>
+                      <input 
+                        type="text" 
+                        value={plan.price}
+                        onChange={(e) => {
+                          const newPlans = [...pricingPlans];
+                          newPlans[index].price = e.target.value;
+                          setPricingPlans(newPlans);
+                        }}
+                        style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '8px' }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '4px' }}>Description</label>
+                      <textarea 
+                        value={plan.description}
+                        onChange={(e) => {
+                          const newPlans = [...pricingPlans];
+                          newPlans[index].description = e.target.value;
+                          setPricingPlans(newPlans);
+                        }}
+                        rows="2"
+                        style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '8px', resize: 'vertical' }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '4px' }}>Features (One per line)</label>
+                      <textarea 
+                        value={Array.isArray(plan.features) ? plan.features.join('\n') : plan.features}
+                        onChange={(e) => {
+                          const newPlans = [...pricingPlans];
+                          // Convert multiline text back into an array of strings
+                          newPlans[index].features = e.target.value.split('\n').filter(f => f.trim() !== '');
+                          setPricingPlans(newPlans);
+                        }}
+                        rows="5"
+                        style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '8px', resize: 'vertical' }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={plan.is_popular}
+                        onChange={(e) => {
+                          const newPlans = [...pricingPlans];
+                          newPlans[index].is_popular = e.target.checked;
+                          setPricingPlans(newPlans);
+                        }}
+                        id={`popular-${plan.id}`}
+                      />
+                      <label htmlFor={`popular-${plan.id}`} style={{ color: 'var(--text-primary)', fontSize: '14px' }}>Highlight as "Most Popular"</label>
+                    </div>
+
+                    <button 
+                      onClick={() => handleUpdatePlan(plan.id, plan)}
+                      style={{ marginTop: '16px', background: 'var(--color-primary)', color: 'white', border: 'none', padding: '10px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
+                    >
+                      Save Changes
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>

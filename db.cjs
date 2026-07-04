@@ -51,8 +51,33 @@ const initDB = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    // Create pricing_plans table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS pricing_plans (
+        id SERIAL PRIMARY KEY,
+        plan_name VARCHAR(100) NOT NULL,
+        price VARCHAR(50) NOT NULL,
+        description TEXT,
+        features JSONB,
+        is_popular BOOLEAN DEFAULT false,
+        tier_order INTEGER
+      )
+    `);
+
+    // Seed pricing plans if table is empty
+    const { rowCount } = await client.query('SELECT COUNT(*) FROM pricing_plans');
+    if (parseInt(rowCount) === 0 || (await client.query('SELECT * FROM pricing_plans')).rows.length === 0) {
+      await client.query(`
+        INSERT INTO pricing_plans (plan_name, price, description, features, is_popular, tier_order) VALUES
+        ('Starter', '$49', 'Perfect for small businesses looking to automate basic calling.', '["500 AI Call Minutes", "Basic CRM Dashboard", "Email Support"]'::jsonb, false, 1),
+        ('Professional', '$149', 'For growing sales teams that need high volume and deep insights.', '["2,000 AI Call Minutes", "Multi-language Support", "Priority Support", "Live Call Takeover"]'::jsonb, true, 2),
+        ('Enterprise', '$499', 'Custom solutions for large organizations with complex needs.', '["Unlimited Minutes", "Custom LLM Training", "Dedicated Success Manager", "White-label Options"]'::jsonb, false, 3)
+      `);
+      console.log('[DB] Seeded default pricing plans');
+    }
     
-    console.log('[DB] Demo requests table ensured');
+    console.log('[DB] Demo requests and Pricing tables ensured');
     client.release();
   } catch (err) {
     console.error('[DB ERROR] Failed to initialize database:', err);
@@ -247,6 +272,45 @@ const getDemoRequests = async () => {
     client.release();
     return result.rows;
   } catch (err) {
+    console.error('[DB ERROR] Failed to fetch demo requests:', err);
+    throw err;
+  }
+};
+
+const getPricingPlans = async () => {
+  try {
+    const client = await pool.connect();
+    const result = await client.query('SELECT * FROM pricing_plans ORDER BY tier_order ASC');
+    client.release();
+    return result.rows;
+  } catch (err) {
+    console.error('[DB ERROR] Failed to fetch pricing plans:', err);
+    throw err;
+  }
+};
+
+const updatePricingPlan = async (id, planData) => {
+  try {
+    const query = `
+      UPDATE pricing_plans 
+      SET plan_name = $1, price = $2, description = $3, features = $4, is_popular = $5
+      WHERE id = $6
+      RETURNING *
+    `;
+    const values = [
+      planData.plan_name,
+      planData.price,
+      planData.description,
+      JSON.stringify(planData.features),
+      planData.is_popular,
+      id
+    ];
+    const client = await pool.connect();
+    const result = await client.query(query, values);
+    client.release();
+    return result.rows[0];
+  } catch (err) {
+    console.error('[DB ERROR] Failed to update pricing plan:', err);
     throw err;
   }
 };
@@ -263,5 +327,7 @@ module.exports = {
   updateLeadRecording,
   updateLeadTemperature,
   saveDemoRequest,
-  getDemoRequests
+  getDemoRequests,
+  getPricingPlans,
+  updatePricingPlan
 };

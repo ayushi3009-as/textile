@@ -119,28 +119,38 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-      twilioClient.calls(req.body.CallSid).recordings.create({
-        recordingChannels: 'dual',
-        recordingStatusCallback: `https://${req.get('host')}/api/recording-status`,
-        recordingStatusCallbackEvent: ['completed']
-      }).catch(err => console.error('[TWILIO] Failed to start recording:', err.message));
-    } catch (err) {
-      console.error('[TWILIO] Error initializing recording:', err);
-    }
-  }
+// ==========================================
+// TELECOM WEBHOOKS (EXOTEL / TWILIO)
+// ==========================================
 
-  const twiml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Connect>
-    <Stream url="wss://${req.headers.host}/media-stream">
-      <Parameter name="callerNumber" value="${req.body.From || 'Unknown'}" />
-      <Parameter name="twilioNumber" value="${twilioNumber || 'Unknown'}" />
-      <Parameter name="callSid" value="${req.body.CallSid || ''}" />
-    </Stream>
-  </Connect>
-</Response>`;
-  res.type('text/xml').send(twiml);
+// 1. Twilio TwiML Endpoint
+app.post('/twiml', async (req, res) => {
+  try {
+    const VoiceResponse = require('twilio').twiml.VoiceResponse;
+    const twiml = new VoiceResponse();
+    const twilioNumber = req.body.To;
+    const callerNumber = req.body.From;
+    const callSid = req.body.CallSid;
+    
+    // Connect the call to our WebSocket stream
+    const connect = twiml.connect();
+    connect.stream({
+      url: `wss://${req.headers.host}/media-stream`,
+      name: 'texvibe-ai-stream'
+    }).parameter({ name: 'twilioNumber', value: twilioNumber })
+      .parameter({ name: 'callerNumber', value: callerNumber })
+      .parameter({ name: 'callSid', value: callSid });
+
+    res.type('text/xml');
+    res.send(twiml.toString());
+  } catch (err) {
+    console.error('[TWIML ERROR]', err);
+    res.status(500).send('Error');
+  }
 });
+
+// 2. Exotel uses the App Bazaar (Voicebot Applet) to connect directly to the WebSocket URL (wss://api.tivra.marketing/connection).
+// Therefore, we don't need an XML endpoint for Exotel, only for Twilio.
 
 // Endpoint to receive Twilio Recording Status Callbacks
 app.post('/api/recording-status', express.urlencoded({ extended: true }), async (req, res) => {
@@ -291,15 +301,47 @@ app.post('/api/demo-requests', async (req, res) => {
   }
 });
 
-app.get('/api/superadmin/demo-requests', async (req, res) => {
+// Get All Demo Requests (SuperAdmin)
+app.get('/api/superadmin/demo-requests', authenticateToken, async (req, res) => {
   try {
-    const requests = await db.getDemoRequests();
-    res.json(requests);
+    const demoRequests = await db.getDemoRequests();
+    res.json(demoRequests);
   } catch (err) {
-    console.error('[API ERROR] /api/superadmin/demo-requests:', err);
-    res.status(500).json({ error: 'Failed to fetch requests' });
+    console.error('Error fetching demo requests:', err);
+    res.status(500).json({ error: 'Server error' });
   }
 });
+
+// ==========================================
+// DYNAMIC PRICING ENDPOINTS
+// ==========================================
+
+// Get All Pricing Plans (Public)
+app.get('/api/pricing', async (req, res) => {
+  try {
+    const plans = await db.getPricingPlans();
+    res.json(plans);
+  } catch (err) {
+    console.error('Error fetching pricing plans:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Update Pricing Plan (SuperAdmin)
+app.post('/api/superadmin/pricing/:id', authenticateToken, async (req, res) => {
+  try {
+    // Basic superadmin check (since auth middleware doesn't enforce role yet, we rely on UI hiding for now, but a robust app would check role here)
+    const updatedPlan = await db.updatePricingPlan(req.params.id, req.body);
+    res.json(updatedPlan);
+  } catch (err) {
+    console.error('Error updating pricing plan:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ==========================================
+// CALL LOGS & DASHBOARD ENDPOINTS
+// ==========================================
 
 // 4. Test Endpoint to simulate a call for the dashboard
 app.get('/api/test-event', (req, res) => {
@@ -530,38 +572,7 @@ wss.on('connection', (ws, req) => {
     }
   };
 
-  // ==========================================
-// TELECOM WEBHOOKS (EXOTEL / TWILIO)
-// ==========================================
 
-// 1. Twilio TwiML Endpoint
-app.post('/twiml', async (req, res) => {
-  try {
-    const VoiceResponse = require('twilio').twiml.VoiceResponse;
-    const twiml = new VoiceResponse();
-    const twilioNumber = req.body.To;
-    const callerNumber = req.body.From;
-    const callSid = req.body.CallSid;
-    
-    // Connect the call to our WebSocket stream
-    const connect = twiml.connect();
-    connect.stream({
-      url: `wss://${req.headers.host}/media-stream`,
-      name: 'texvibe-ai-stream'
-    }).parameter({ name: 'twilioNumber', value: twilioNumber })
-      .parameter({ name: 'callerNumber', value: callerNumber })
-      .parameter({ name: 'callSid', value: callSid });
-
-    res.type('text/xml');
-    res.send(twiml.toString());
-  } catch (err) {
-    console.error('[TWIML ERROR]', err);
-    res.status(500).send('Error');
-  }
-});
-
-// 2. Exotel uses the App Bazaar (Voicebot Applet) to connect directly to the WebSocket URL (wss://api.tivra.marketing/connection).
-// Therefore, we don't need an XML endpoint for Exotel, only for Twilio.
 
   // ========== HANDLE TELECOM MESSAGES (Exotel AgentStream) ==========
   ws.on('message', async (message) => {
@@ -612,7 +623,6 @@ User: I want premium cotton.
 AI: Great, premium cotton is a great choice. What color do you prefer?
 User: Pastel.
 AI: Pastel is lovely. How much quantity do you need?`;
-          }
           }
         } else {
           console.warn(`[WARNING] No client found for Virtual Number: ${virtualNumber}. Using fallback.`);

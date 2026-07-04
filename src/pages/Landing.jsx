@@ -8,6 +8,21 @@ export default function Landing() {
   const [demoForm, setDemoForm] = useState({ name: '', email: '', phone: '', company: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [pricingPlans, setPricingPlans] = useState([]);
+
+  useEffect(() => {
+    const fetchPricing = async () => {
+      try {
+        const API_URL = import.meta.env.VITE_API_URL || '';
+        const response = await fetch(`${API_URL}/api/pricing`);
+        const data = await response.json();
+        if (data && data.length > 0) setPricingPlans(data);
+      } catch (error) {
+        console.error('Failed to fetch pricing plans:', error);
+      }
+    };
+    fetchPricing();
+  }, []);
 
   const handleDemoSubmit = async (e) => {
     e.preventDefault();
@@ -174,53 +189,30 @@ export default function Landing() {
       <section id="pricing" className="pricing-section">
         <h2 className="section-title">Simple, transparent pricing</h2>
         <div className="pricing-grid">
-          {/* Starter Plan */}
-          <div className="pricing-card">
-            <h3 className="pricing-plan">Starter</h3>
-            <div className="pricing-price">
-              $49<span className="pricing-period">/mo</span>
+          {pricingPlans.length > 0 ? pricingPlans.map(plan => (
+            <div key={plan.id} className={`pricing-card ${plan.is_popular ? 'popular' : ''}`}>
+              {plan.is_popular && <div className="popular-badge">Most Popular</div>}
+              <h3 className="pricing-plan">{plan.plan_name}</h3>
+              <div className="pricing-price">
+                {plan.price}<span className="pricing-period">/mo</span>
+              </div>
+              <p className="pricing-desc">{plan.description}</p>
+              <ul className="pricing-features">
+                {Array.isArray(plan.features) ? plan.features.map((feature, i) => (
+                  <li key={i} className="pricing-feature"><CheckCircle2 size={18} color="#4f46e5" /> {feature}</li>
+                )) : null}
+              </ul>
+              {plan.plan_name === 'Enterprise' ? (
+                <a href="mailto:contact@texvibe.ai" className="pricing-cta outline">Contact Sales</a>
+              ) : (
+                <Link to="/register" className={`pricing-cta ${plan.is_popular ? 'filled' : 'outline'}`}>Get Started</Link>
+              )}
             </div>
-            <p className="pricing-desc">Perfect for small businesses looking to automate basic calling.</p>
-            <ul className="pricing-features">
-              <li className="pricing-feature"><CheckCircle2 size={18} color="#4f46e5" /> 500 AI Call Minutes</li>
-              <li className="pricing-feature"><CheckCircle2 size={18} color="#4f46e5" /> Basic CRM Dashboard</li>
-              <li className="pricing-feature"><CheckCircle2 size={18} color="#4f46e5" /> Email Support</li>
-            </ul>
-            <Link to="/register" className="pricing-cta outline">Get Started</Link>
-          </div>
-
-          {/* Pro Plan */}
-          <div className="pricing-card popular">
-            <div className="popular-badge">Most Popular</div>
-            <h3 className="pricing-plan">Professional</h3>
-            <div className="pricing-price">
-              $149<span className="pricing-period">/mo</span>
+          )) : (
+            <div style={{ textAlign: 'center', gridColumn: '1 / -1', color: 'var(--text-muted)' }}>
+              Loading pricing plans...
             </div>
-            <p className="pricing-desc">For growing sales teams that need high volume and deep insights.</p>
-            <ul className="pricing-features">
-              <li className="pricing-feature"><CheckCircle2 size={18} color="#4f46e5" /> 2,000 AI Call Minutes</li>
-              <li className="pricing-feature"><CheckCircle2 size={18} color="#4f46e5" /> Multi-language Support</li>
-              <li className="pricing-feature"><CheckCircle2 size={18} color="#4f46e5" /> Priority Support</li>
-              <li className="pricing-feature"><CheckCircle2 size={18} color="#4f46e5" /> Live Call Takeover</li>
-            </ul>
-            <Link to="/register" className="pricing-cta filled">Get Started</Link>
-          </div>
-
-          {/* Enterprise Plan */}
-          <div className="pricing-card">
-            <h3 className="pricing-plan">Enterprise</h3>
-            <div className="pricing-price">
-              $499<span className="pricing-period">/mo</span>
-            </div>
-            <p className="pricing-desc">Custom solutions for large organizations with complex needs.</p>
-            <ul className="pricing-features">
-              <li className="pricing-feature"><CheckCircle2 size={18} color="#4f46e5" /> Unlimited Minutes</li>
-              <li className="pricing-feature"><CheckCircle2 size={18} color="#4f46e5" /> Custom LLM Training</li>
-              <li className="pricing-feature"><CheckCircle2 size={18} color="#4f46e5" /> Dedicated Success Manager</li>
-              <li className="pricing-feature"><CheckCircle2 size={18} color="#4f46e5" /> White-label Options</li>
-            </ul>
-            <a href="mailto:contact@texvibe.ai" className="pricing-cta outline">Contact Sales</a>
-          </div>
+          )}
         </div>
       </section>
 
