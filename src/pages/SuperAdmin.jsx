@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Building, Users, Clock, LogOut } from 'lucide-react';
+import { Shield, Building, Users, Clock, LogOut, X, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function SuperAdmin() {
@@ -10,6 +10,8 @@ export default function SuperAdmin() {
   const [pricingPlans, setPricingPlans] = useState([]);
   const [activeTab, setActiveTab] = useState('clients'); // 'clients', 'requests', 'pricing'
   const [loading, setLoading] = useState(false);
+  const [selectedReceipt, setSelectedReceipt] = useState(null);
+  const [reviewingClient, setReviewingClient] = useState(null);
   const navigate = useNavigate();
 
   const handleLogin = (e) => {
@@ -55,6 +57,24 @@ export default function SuperAdmin() {
       const response = await fetch(`${API_URL}/api/pricing`);
       const data = await response.json();
       setPricingPlans(data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleReviewPayment = async (status) => {
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || '';
+      const res = await fetch(`${API_URL}/api/superadmin/clients/${reviewingClient}/payment`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+      if (res.ok) {
+        setReviewingClient(null);
+        setSelectedReceipt(null);
+        fetchClients();
+      }
     } catch (err) {
       console.error(err);
     }
@@ -184,6 +204,8 @@ export default function SuperAdmin() {
               <thead>
                 <tr>
                   <th>Company Info</th>
+                  <th>Plan Selected</th>
+                  <th>Payment Status</th>
                   <th>Exotel Virtual Number</th>
                   <th>Total Leads Generated</th>
                   <th>Plan Expiration</th>
@@ -202,6 +224,32 @@ export default function SuperAdmin() {
                           <span className="caller-name">{client.company_name}</span>
                           <span className="caller-company">{client.email}</span>
                         </div>
+                      </td>
+                      <td>
+                        <span style={{ fontWeight: '500', color: 'var(--text-primary)' }}>
+                          {client.plan_name || 'No Plan'}
+                        </span>
+                      </td>
+                      <td>
+                        {client.payment_status === 'paid' ? (
+                          <span className="badge badge-vip">Paid</span>
+                        ) : client.payment_status === 'verification_pending' ? (
+                          <div>
+                            <span className="badge badge-warm" style={{ marginBottom: '5px', display: 'inline-block' }}>Under Review</span>
+                            <br />
+                            <button 
+                              onClick={() => {
+                                setReviewingClient(client.id);
+                                setSelectedReceipt(client.payment_receipt);
+                              }}
+                              style={{ background: 'var(--color-primary)', border: 'none', color: '#fff', padding: '4px 8px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer' }}
+                            >
+                              Review Payment
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="badge badge-spam">Pending</span>
+                        )}
                       </td>
                       <td>
                         <span style={{ fontWeight: '500', fontFamily: 'monospace', color: 'var(--color-primary)' }}>
@@ -389,6 +437,44 @@ export default function SuperAdmin() {
           </div>
         )}
       </div>
+      
+      {/* Payment Receipt Review Modal */}
+      {reviewingClient && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: 'var(--bg-secondary)', padding: '30px', borderRadius: '12px', maxWidth: '600px', width: '90%', maxHeight: '90vh', overflowY: 'auto' }}>
+            <h2 style={{ marginBottom: '20px' }}>Review Payment Receipt</h2>
+            
+            {selectedReceipt ? (
+              <img src={selectedReceipt} alt="Payment Receipt" style={{ width: '100%', borderRadius: '8px', marginBottom: '20px' }} />
+            ) : (
+              <div style={{ padding: '40px', textAlign: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', marginBottom: '20px' }}>
+                No receipt image provided.
+              </div>
+            )}
+            
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button 
+                onClick={() => { setReviewingClient(null); setSelectedReceipt(null); }}
+                style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: 'white', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => handleReviewPayment('pending')}
+                style={{ background: 'var(--color-spam)', border: 'none', color: 'white', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' }}
+              >
+                Reject
+              </button>
+              <button 
+                onClick={() => handleReviewPayment('paid')}
+                style={{ background: 'var(--color-primary)', border: 'none', color: 'white', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' }}
+              >
+                Approve Payment
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

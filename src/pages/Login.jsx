@@ -19,7 +19,18 @@ export default function Login() {
       });
       
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      
+      if (!res.ok) {
+        if (data.verificationPending) {
+          setError(data.error);
+          return;
+        }
+        if (data.paymentRequired) {
+          navigate('/payment', { state: { client: data.client } });
+          return;
+        }
+        throw new Error(data.error);
+      }
       
       localStorage.setItem('saas_token', data.token);
       localStorage.setItem('saas_client', JSON.stringify(data.client));

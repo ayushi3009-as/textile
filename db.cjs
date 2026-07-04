@@ -18,8 +18,26 @@ const initDB = async () => {
         password_hash VARCHAR(255) NOT NULL,
         twilio_number VARCHAR(50) UNIQUE,
         system_prompt TEXT,
+        payment_status VARCHAR(50) DEFAULT 'pending',
+        plan_id INTEGER REFERENCES pricing_plans(id),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
+    `);
+
+    // Safely add columns if they don't exist (for existing databases)
+    await client.query(`
+      DO $$
+      BEGIN
+        BEGIN
+          ALTER TABLE clients ADD COLUMN payment_status VARCHAR(50) DEFAULT 'pending';
+        EXCEPTION WHEN duplicate_column THEN END;
+        BEGIN
+          ALTER TABLE clients ADD COLUMN plan_id INTEGER REFERENCES pricing_plans(id);
+        EXCEPTION WHEN duplicate_column THEN END;
+        BEGIN
+          ALTER TABLE clients ADD COLUMN payment_receipt TEXT;
+        EXCEPTION WHEN duplicate_column THEN END;
+      END $$;
     `);
 
     // Create leads table with client_id foreign key
@@ -141,12 +159,12 @@ const getLeads = async (clientId = null) => {
   }
 };
 
-const createClient = async (companyName, email, passwordHash, twilioNumber = null) => {
+const createClient = async (companyName, email, passwordHash, twilioNumber = null, planId = null) => {
   try {
     const client = await pool.connect();
     const result = await client.query(
-      'INSERT INTO clients (company_name, email, password_hash, twilio_number) VALUES ($1, $2, $3, $4) RETURNING id, company_name, email, twilio_number',
-      [companyName, email, passwordHash, twilioNumber]
+      'INSERT INTO clients (company_name, email, password_hash, twilio_number, plan_id, payment_status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, company_name, email, twilio_number, plan_id, payment_status',
+      [companyName, email, passwordHash, twilioNumber, planId, email === 'admin@company.com' ? 'paid' : 'pending']
     );
     client.release();
     return result.rows[0];
@@ -195,10 +213,14 @@ const getAllClientsStats = async () => {
         c.email, 
         c.twilio_number,
         c.plan_expires_at,
+        c.payment_status,
+        c.payment_receipt,
+        p.plan_name,
         COUNT(l.id) as total_leads
       FROM clients c
       LEFT JOIN leads l ON c.id = l.client_id
-      GROUP BY c.id
+      LEFT JOIN pricing_plans p ON c.plan_id = p.id
+      GROUP BY c.id, p.plan_name
       ORDER BY c.created_at DESC
     `);
     client.release();
@@ -315,7 +337,36 @@ const updatePricingPlan = async (id, planData) => {
   }
 };
 
+const updateClientPaymentStatus = async (id, status) => {
+  try {
+    const client = await pool.connect();
+    const result = await client.query(
+      'UPDATE clients SET payment_status = $1 WHERE id = $2 RETURNING *',
+      [status, id]
+    );
+    client.release();
+    return result.rows[0];
+  } catch (err) {
+    throw err;
+  }
+};
+
+const updateClientReceipt = async (id, receiptBase64) => {
+  try {
+    const client = await pool.connect();
+    const result = await client.query(
+      'UPDATE clients SET payment_receipt = $1, payment_status = $2 WHERE id = $3 RETURNING *',
+      [receiptBase64, 'verification_pending', id]
+    );
+    client.release();
+    return result.rows[0];
+  } catch (err) {
+    throw err;
+  }
+};
+
 module.exports = {
+  pool,
   initDB,
   saveLead,
   getLeads,
@@ -329,5 +380,7 @@ module.exports = {
   saveDemoRequest,
   getDemoRequests,
   getPricingPlans,
-  updatePricingPlan
+  updatePricingPlan,
+  updateClientPaymentStatus,
+  updateClientReceipt
 };

@@ -14,7 +14,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key';
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 const server = http.createServer(app);
@@ -85,15 +85,22 @@ const authenticateToken = (req, res, next) => {
 // ========== AUTHENTICATION ROUTES ==========
 app.post('/api/register', async (req, res) => {
   try {
-    const { companyName, email, password, twilioNumber } = req.body;
+    const { companyName, email, password, twilioNumber, planId } = req.body;
     if (!companyName || !email || !password) return res.status(400).json({ error: 'Missing fields' });
     
     const existingClient = await db.getClientByEmail(email);
     if (existingClient) return res.status(400).json({ error: 'Email already in use' });
     
     const passwordHash = await bcrypt.hash(password, 10);
-    const newClient = await db.createClient(companyName, email, passwordHash, twilioNumber);
+    const newClient = await db.createClient(companyName, email, passwordHash, twilioNumber, planId);
     
+    if (newClient.payment_status === 'verification_pending') {
+      return res.status(201).json({ verificationPending: true, client: newClient });
+    }
+    if (newClient.payment_status !== 'paid') {
+      return res.status(201).json({ paymentRequired: true, client: newClient });
+    }
+
     const token = jwt.sign({ id: newClient.id, email: newClient.email }, JWT_SECRET, { expiresIn: '24h' });
     res.json({ token, client: newClient });
   } catch (err) {
@@ -111,11 +118,37 @@ app.post('/api/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
     
+    if (client.payment_status === 'verification_pending') {
+      return res.status(403).json({ error: 'Your payment is currently under review by our team.', verificationPending: true });
+    }
+    
+    if (client.payment_status !== 'paid') {
+      return res.status(403).json({ error: 'Payment required to access the dashboard.', paymentRequired: true, client: { id: client.id, email: client.email } });
+    }
+    
     const token = jwt.sign({ id: client.id, email: client.email }, JWT_SECRET, { expiresIn: '24h' });
     res.json({ token, client: { id: client.id, companyName: client.company_name, email: client.email } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+// ==========================================
+// MANUAL PAYMENT RECEIPT
+// ==========================================
+app.post('/api/submit-payment-receipt', async (req, res) => {
+  try {
+    const { clientId, receiptBase64 } = req.body;
+    if (!clientId || !receiptBase64) return res.status(400).json({ error: 'Missing data' });
+    
+    const updatedClient = await db.updateClientReceipt(clientId, receiptBase64);
+    if (!updatedClient) return res.status(404).json({ error: 'Client not found' });
+    
+    res.json({ success: true, client: updatedClient });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to submit receipt' });
   }
 });
 
@@ -286,7 +319,19 @@ app.put('/api/superadmin/clients/:id/plan', async (req, res) => {
     res.json(updatedClient);
   } catch (err) {
     console.error('[API ERROR] /api/superadmin/clients/:id/plan:', err);
-    res.status(500).json({ error: 'Failed to update plan date' });
+    res.status(500).json({ error: 'Failed to update client plan' });
+  }
+});
+
+app.put('/api/superadmin/clients/:id/payment', async (req, res) => {
+  try {
+    const clientId = req.params.id;
+    const { status } = req.body; // 'paid' or 'pending'
+    const updatedClient = await db.updateClientPaymentStatus(clientId, status);
+    res.json(updatedClient);
+  } catch (err) {
+    console.error('[API ERROR] /api/superadmin/clients/:id/payment:', err);
+    res.status(500).json({ error: 'Failed to update payment status' });
   }
 });
 

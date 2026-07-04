@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Shield, MessageSquare, Zap, Globe, CheckCircle2, ArrowRight, X, BarChart3, Clock, Headphones } from 'lucide-react';
 import './Landing.css';
@@ -205,7 +205,7 @@ export default function Landing() {
               {plan.plan_name === 'Enterprise' ? (
                 <a href="mailto:contact@texvibe.ai" className="pricing-cta outline">Contact Sales</a>
               ) : (
-                <Link to="/register" className={`pricing-cta ${plan.is_popular ? 'filled' : 'outline'}`}>Get Started</Link>
+                <Link to={`/register?plan=${plan.id}`} className={`pricing-cta ${plan.is_popular ? 'filled' : 'outline'}`}>Get Started</Link>
               )}
             </div>
           )) : (

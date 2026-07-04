@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { UserPlus, PhoneCall } from 'lucide-react';
 
 export default function Register() {
@@ -10,6 +10,8 @@ export default function Register() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const planId = searchParams.get('plan') || null;
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -21,15 +23,19 @@ export default function Register() {
       const res = await fetch(`${API_URL}/api/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ companyName, email, password, twilioNumber })
+        body: JSON.stringify({ companyName, email, password, twilioNumber, planId })
       });
       
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       
-      localStorage.setItem('saas_token', data.token);
-      localStorage.setItem('saas_client', JSON.stringify(data.client));
-      navigate('/dashboard');
+      if (data.paymentRequired || data.verificationPending) {
+        navigate('/payment', { state: { client: data.client } });
+      } else {
+        localStorage.setItem('saas_token', data.token);
+        localStorage.setItem('saas_client', JSON.stringify(data.client));
+        navigate('/dashboard');
+      }
     } catch (err) {
       setError(err.message);
     } finally {
