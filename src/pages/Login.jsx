@@ -32,7 +32,7 @@ export default function Login() {
           return;
         }
         if (data.paymentRequired) {
-          navigate('/payment', { state: { client: data.client, rejected: data.rejected } });
+          navigate('/payment', { state: { client: data.client, rejected: data.rejected, planExpired: data.planExpired } });
           return;
         }
         throw new Error(data.error);

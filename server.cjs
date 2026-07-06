@@ -143,6 +143,16 @@ app.post('/api/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
     
+    // Check if plan is expired
+    if (client.plan_expires_at && new Date(client.plan_expires_at) < new Date()) {
+      return res.status(403).json({ 
+        error: 'Your plan has expired. Please renew your plan to continue accessing the dashboard.', 
+        paymentRequired: true, 
+        planExpired: true,
+        client: { id: client.id, email: client.email, plan_name: client.plan_name, price: client.price } 
+      });
+    }
+    
     if (client.payment_status === 'verification_pending') {
       return res.status(403).json({ error: 'Your payment is currently under review by our team.', verificationPending: true });
     }

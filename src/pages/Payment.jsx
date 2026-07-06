@@ -7,6 +7,7 @@ export default function Payment() {
   const navigate = useNavigate();
   const clientData = location.state?.client;
   const isRejected = location.state?.rejected;
+  const isExpired = location.state?.planExpired;
   
   const [loading, setLoading] = useState(false);
   const [verificationPending, setVerificationPending] = useState(clientData?.payment_status === 'verification_pending');
@@ -123,7 +124,9 @@ export default function Payment() {
             <div className="auth-icon-wrapper" style={{ margin: '0 auto 20px', background: 'rgba(79, 70, 229, 0.1)', color: '#4f46e5' }}>
               <CreditCard size={32} />
             </div>
-            <h1 className="auth-title">Complete Your Subscription</h1>
+            <h1 className="auth-title">
+              {isExpired ? 'Renew Your Subscription' : 'Complete Your Subscription'}
+            </h1>
             <p className="auth-subtitle">Scan the QR code below to pay securely via UPI.</p>
             
             <div style={{ background: 'var(--bg-secondary)', padding: '20px', borderRadius: '12px', margin: '20px 0', textAlign: 'left' }}>
@@ -204,7 +207,7 @@ export default function Payment() {
               className="auth-button"
               style={{ padding: '15px', opacity: receiptImage ? 1 : 0.6 }}
             >
-              {loading ? 'Submitting...' : 'Submit Receipt for Verification'}
+              {loading ? 'Submitting...' : (isExpired ? 'Submit Renewal Receipt' : 'Submit Receipt for Verification')}
             </button>
           </>
         )}
