@@ -72,7 +72,20 @@ export default function Dashboard() {
         });
         if (response.ok) {
           const data = await response.json();
-          setAppointments(data || []);
+          if (data && data.length > 0) {
+            setAppointments(data);
+          } else {
+            // Provide a dummy example if no appointments exist yet
+            setAppointments([
+              {
+                id: 'demo-1',
+                lead_name: 'Vikram Textiles',
+                lead_phone: '+91 98765 43210',
+                appointment_time: 'Tomorrow at 2:30 PM',
+                description: 'User asked about premium cotton (500 meters). Very interested, wants a sample and requested a meeting to finalize bulk pricing.'
+              }
+            ]);
+          }
         }
       } catch (err) {
         console.error("Failed to fetch appointments:", err);
