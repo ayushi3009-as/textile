@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Shield, MessageSquare, Zap, Globe, CheckCircle2, ArrowRight, X, BarChart3, Clock, Headphones, 
-  UploadCloud, BrainCircuit, LineChart, Building2, ShoppingCart, Briefcase, Moon, Sun
+  UploadCloud, BrainCircuit, LineChart, Building2, ShoppingCart, Briefcase, Moon, Sun, Phone, Users
 } from 'lucide-react';
 import './Landing.css';
 
@@ -108,14 +108,17 @@ export default function Landing() {
       <header className="hero-section">
         <div className="hero-content">
           <div className="hero-badge fade-up">
-            <span className="badge-dot"></span> Next-Gen Voice Intelligence
+            <span className="badge-dot"></span> AI VOICE AGENT FOR TEXTILE INDUSTRY
           </div>
-          <h1 className="hero-title fade-up delay-1">
-            The AI Voice Agent That <br/>
-            <span className="hero-title-highlight">Closes Deals For You.</span>
+          <h1 className="hero-title fade-up delay-1" style={{ textTransform: 'uppercase' }}>
+            The AI Voice Agent <br/>
+            That Closes <span className="hero-title-highlight">More Deals</span>
           </h1>
+          <p className="hero-subtitle fade-up delay-2" style={{ fontWeight: '600', color: 'var(--text-primary)', marginBottom: '16px', fontSize: '24px' }}>
+            Convert Every Inquiry Into a Business Opportunity
+          </p>
           <p className="hero-subtitle fade-up delay-2">
-            Automate your textile business with hyper-realistic AI. Our agent instantly calls your wholesale buyers, pushes new catalogs, negotiates fabric rates, and updates your CRM automatically—24/7, in English, Hindi, or Gujarati.
+            Never miss a buyer inquiry. Our AI Voice Agent answers calls instantly, qualifies buyers, shares product information, books meetings, and syncs every conversation with your CRM—24/7.
           </p>
           <div className="hero-actions fade-up delay-3">
             <Link to="/register" className="cta-button cta-primary glow-effect">
@@ -190,56 +193,139 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* How It Works Section */}
-      <section id="how-it-works" className="how-it-works-section">
+      {/* Features Section */}
+      <section id="features" className="how-it-works-section">
         <div className="container">
-          <h2 className="section-title">How TexVibe Works</h2>
-          <p className="section-subtitle">A seamless 3-step process to put your sales on autopilot.</p>
+          <h2 className="section-title" style={{ fontSize: '32px', textTransform: 'uppercase', marginBottom: '40px', color: 'var(--text-primary)' }}>
+            Powerful. Features Built For Textile Businesses
+          </h2>
           
-          <div className="steps-grid">
-            <div className="step-card">
-              <div className="step-number">01</div>
-              <div className="step-icon"><UploadCloud size={32} /></div>
-              <h3>Upload & Connect</h3>
-              <p>Connect your existing CRM or upload a simple Excel sheet of leads. Our system instantly maps your data and prepares the campaign.</p>
+          <div className="steps-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)', gap: '24px' }}>
+            <div className="step-card feature-card" style={{ display: 'flex', gap: '16px', padding: '24px', alignItems: 'flex-start' }}>
+              <div className="step-icon" style={{ marginBottom: 0, width: '48px', height: '48px', flexShrink: 0 }}><Phone size={24} /></div>
+              <div>
+                <h3 style={{ fontSize: '18px', marginBottom: '8px' }}>Instant Buyer Response</h3>
+                <p style={{ fontSize: '14px' }}>Respond to wholesalers, retailers & distributors instantly.</p>
+              </div>
             </div>
-            <div className="step-card">
-              <div className="step-number">02</div>
-              <div className="step-icon"><BrainCircuit size={32} /></div>
-              <h3>AI Autopilot Calls</h3>
-              <p>TexVibe AI initiates outbound calls. It converses smoothly in English, Hindi, or Gujarati, handling complex objections like a seasoned human agent.</p>
+            
+            <div className="step-card feature-card" style={{ display: 'flex', gap: '16px', padding: '24px', alignItems: 'flex-start' }}>
+              <div className="step-icon" style={{ marginBottom: 0, width: '48px', height: '48px', flexShrink: 0 }}><Headphones size={24} /></div>
+              <div>
+                <h3 style={{ fontSize: '18px', marginBottom: '8px' }}>AI Call Recording & Transcripts</h3>
+                <p style={{ fontSize: '14px' }}>Every conversation is securely recorded and transcribed.</p>
+              </div>
             </div>
-            <div className="step-card">
-              <div className="step-number">03</div>
-              <div className="step-icon"><LineChart size={32} /></div>
-              <h3>Instant Insights</h3>
-              <p>The moment the call ends, you receive a full transcript, an audio recording, and a definitive Hot/Cold lead score directly in your dashboard.</p>
+
+            <div className="step-card feature-card" style={{ display: 'flex', gap: '16px', padding: '24px', alignItems: 'flex-start' }}>
+              <div className="step-icon" style={{ marginBottom: 0, width: '48px', height: '48px', flexShrink: 0 }}><Clock size={24} /></div>
+              <div>
+                <h3 style={{ fontSize: '18px', marginBottom: '8px' }}>24×7 AI Call Handling</h3>
+                <p style={{ fontSize: '14px' }}>Never miss enquiries after office hours.</p>
+              </div>
+            </div>
+
+            <div className="step-card feature-card" style={{ display: 'flex', gap: '16px', padding: '24px', alignItems: 'flex-start' }}>
+              <div className="step-icon" style={{ marginBottom: 0, width: '48px', height: '48px', flexShrink: 0 }}><Building2 size={24} /></div>
+              <div>
+                <h3 style={{ fontSize: '18px', marginBottom: '8px' }}>CRM Integration</h3>
+                <p style={{ fontSize: '14px' }}>Automatically update customer details, follow-ups & sales pipeline.</p>
+              </div>
+            </div>
+
+            <div className="step-card feature-card" style={{ display: 'flex', gap: '16px', padding: '24px', alignItems: 'flex-start' }}>
+              <div className="step-icon" style={{ marginBottom: 0, width: '48px', height: '48px', flexShrink: 0 }}><CheckCircle2 size={24} /></div>
+              <div>
+                <h3 style={{ fontSize: '18px', marginBottom: '8px' }}>Lead Qualification</h3>
+                <p style={{ fontSize: '14px' }}>Automatically identify genuine buyers and prioritize high-value leads.</p>
+              </div>
+            </div>
+
+            <div className="step-card feature-card" style={{ display: 'flex', gap: '16px', padding: '24px', alignItems: 'flex-start' }}>
+              <div className="step-icon" style={{ marginBottom: 0, width: '48px', height: '48px', flexShrink: 0 }}><BarChart3 size={24} /></div>
+              <div>
+                <h3 style={{ fontSize: '18px', marginBottom: '8px' }}>Real-Time Analytics Dashboard</h3>
+                <p style={{ fontSize: '14px' }}>Track call volume, lead quality, conversions & team performance.</p>
+              </div>
+            </div>
+
+            <div className="step-card feature-card" style={{ display: 'flex', gap: '16px', padding: '24px', alignItems: 'flex-start' }}>
+              <div className="step-icon" style={{ marginBottom: 0, width: '48px', height: '48px', flexShrink: 0 }}><Zap size={24} /></div>
+              <div>
+                <h3 style={{ fontSize: '18px', marginBottom: '8px' }}>Smart Appointment Booking</h3>
+                <p style={{ fontSize: '14px' }}>Schedule meetings with your sales team automatically.</p>
+              </div>
+            </div>
+
+            <div className="step-card feature-card" style={{ display: 'flex', gap: '16px', padding: '24px', alignItems: 'flex-start' }}>
+              <div className="step-icon" style={{ marginBottom: 0, width: '48px', height: '48px', flexShrink: 0 }}><MessageSquare size={24} /></div>
+              <div>
+                <h3 style={{ fontSize: '18px', marginBottom: '8px' }}>Automated Follow-Ups</h3>
+                <p style={{ fontSize: '14px' }}>Reduce missed opportunities with AI-powered reminders.</p>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Use Cases Section */}
-      <section id="use-cases" className="use-cases-section">
+      {/* Target Audience Section */}
+      <section id="perfect-for" className="use-cases-section" style={{ background: 'rgba(255,255,255,0.01)' }}>
         <div className="container">
-          <h2 className="section-title">Built exclusively for the Textile Industry</h2>
+          <h2 className="section-title" style={{ fontSize: '24px', textTransform: 'uppercase', marginBottom: '40px', color: 'var(--color-primary)' }}>
+            Perfect For
+          </h2>
           
-          <div className="use-cases-grid">
-            <div className="use-case-card glass-panel">
-              <Building2 size={40} className="use-case-icon" />
-              <h3>Wholesalers & Distributors</h3>
-              <p>Automate calls to retail shops to push new catalog arrivals, clear dead stock, and gracefully remind them about pending payments without tying up your staff.</p>
+          <div className="use-cases-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginTop: '20px' }}>
+            <div className="use-case-card glass-panel" style={{ padding: '24px', textAlign: 'center' }}>
+              <Building2 size={32} className="use-case-icon" style={{ margin: '0 auto 16px' }} />
+              <h3 style={{ fontSize: '16px', marginBottom: 0 }}>Textile Manufacturers</h3>
             </div>
-            <div className="use-case-card glass-panel">
-              <Briefcase size={40} className="use-case-icon" />
-              <h3>Mills & Manufacturers</h3>
-              <p>Handle inbound inquiries from traders instantly. The AI negotiates bulk fabric rates, checks live inventory, and books large manufacturing orders 24/7.</p>
+            <div className="use-case-card glass-panel" style={{ padding: '24px', textAlign: 'center' }}>
+              <ShoppingCart size={32} className="use-case-icon" style={{ margin: '0 auto 16px' }} />
+              <h3 style={{ fontSize: '16px', marginBottom: 0 }}>Fabric Suppliers</h3>
             </div>
-            <div className="use-case-card glass-panel">
-              <ShoppingCart size={40} className="use-case-icon" />
-              <h3>Retail Brands & Boutiques</h3>
-              <p>Engage directly with end-consumers. Automatically call customers with updates on custom stitching, abandoned carts, or exclusive festive saree offers.</p>
+            <div className="use-case-card glass-panel" style={{ padding: '24px', textAlign: 'center' }}>
+              <Zap size={32} className="use-case-icon" style={{ margin: '0 auto 16px' }} />
+              <h3 style={{ fontSize: '16px', marginBottom: 0 }}>Yarn Manufacturers</h3>
             </div>
+            <div className="use-case-card glass-panel" style={{ padding: '24px', textAlign: 'center' }}>
+              <Briefcase size={32} className="use-case-icon" style={{ margin: '0 auto 16px' }} />
+              <h3 style={{ fontSize: '16px', marginBottom: 0 }}>Garment Manufacturers</h3>
+            </div>
+            <div className="use-case-card glass-panel" style={{ padding: '24px', textAlign: 'center' }}>
+              <Globe size={32} className="use-case-icon" style={{ margin: '0 auto 16px' }} />
+              <h3 style={{ fontSize: '16px', marginBottom: 0 }}>Export Houses</h3>
+            </div>
+            <div className="use-case-card glass-panel" style={{ padding: '24px', textAlign: 'center' }}>
+              <Users size={32} className="use-case-icon" style={{ margin: '0 auto 16px' }} />
+              <h3 style={{ fontSize: '16px', marginBottom: 0 }}>Textile Traders & Distributors</h3>
+            </div>
+            <div className="use-case-card glass-panel" style={{ padding: '24px', textAlign: 'center' }}>
+              <ShoppingCart size={32} className="use-case-icon" style={{ margin: '0 auto 16px' }} />
+              <h3 style={{ fontSize: '16px', marginBottom: 0 }}>Wholesalers</h3>
+            </div>
+            <div className="use-case-card glass-panel" style={{ padding: '24px', textAlign: 'center' }}>
+              <ShoppingCart size={32} className="use-case-icon" style={{ margin: '0 auto 16px' }} />
+              <h3 style={{ fontSize: '16px', marginBottom: 0 }}>Retailers</h3>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Banner CTA */}
+      <section style={{ padding: '60px 24px', background: 'var(--premium-gradient)', textAlign: 'center', margin: '60px 0' }}>
+        <div className="container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
+          <h2 style={{ fontSize: '32px', fontWeight: '800', color: '#fff', margin: 0 }}>More Calls. More Qualified Leads. More Sales.</h2>
+          <p style={{ fontSize: '20px', color: 'rgba(255,255,255,0.9)', margin: '0 0 20px 0', maxWidth: '600px' }}>
+            Let AI Handle Your Calls While Your Sales Team Focuses on Closing More Orders.
+          </p>
+          <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
+            <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#fff', width: '100%', marginBottom: '10px' }}>
+              CLOSE MORE DEALS. RESPOND FASTER. GROW YOUR TEXTILE BUSINESS WITH AI.
+            </p>
+            <button onClick={() => setShowDemoModal(true)} className="cta-button" style={{ background: '#fff', color: 'var(--color-primary)', padding: '16px 32px', fontSize: '18px' }}>
+              BOOK A FREE DEMO TODAY
+            </button>
           </div>
         </div>
       </section>
