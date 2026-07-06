@@ -53,7 +53,27 @@ export default function Dashboard() {
         if (data && data.length > 0) {
           setCalls(data);
         } else {
-          setCalls([]); // Ensure empty array for new clients instead of fallback data
+          setCalls([{
+            id: 'demo-lead-1',
+            db_id: 999,
+            callerName: 'Rahul Sharma',
+            company: 'Mumbai, Maharashtra',
+            phone: '+919988776655',
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            duration: "2m 15s",
+            category: "Interested",
+            status: "Completed",
+            summary: "Rahul called asking for 500 meters of premium cotton. Needs a callback.",
+            score: 85,
+            sentiment: "positive",
+            product_wanted: "Premium Cotton",
+            color: "White",
+            quantity: "500 meters",
+            wants_sample: "Yes",
+            recording_url: null,
+            lead_temperature: "Warm",
+            transcript: []
+          }]); 
         }
       } catch (err) {
         console.error("Failed to fetch leads from DB:", err);
