@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Shield, MessageSquare, Zap, Globe, CheckCircle2, ArrowRight, X, BarChart3, Clock, Headphones, 
-  UploadCloud, BrainCircuit, LineChart, Building2, ShoppingCart, Briefcase, Moon, Sun, Phone, Users
+  UploadCloud, BrainCircuit, LineChart, Building2, ShoppingCart, Briefcase, Moon, Sun, Phone, Users, MessageCircle
 } from 'lucide-react';
 import './Landing.css';
 
@@ -411,6 +411,30 @@ export default function Landing() {
                 <button type="submit" className="demo-submit glow-effect" disabled={isSubmitting}>
                   {isSubmitting ? 'Submitting...' : 'Submit Request'}
                 </button>
+                
+                <div style={{ textAlign: 'center', marginTop: '20px' }}>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginBottom: '10px' }}>Or book instantly via WhatsApp</p>
+                  <a 
+                    href="https://wa.me/916355997080?text=Hi!%20I%20would%20like%20to%20book%20a%20demo%20for%20MicroTechnique%20AI." 
+                    target="_blank" 
+                    rel="noreferrer"
+                    style={{ 
+                      display: 'inline-flex', 
+                      alignItems: 'center', 
+                      gap: '8px', 
+                      background: '#25D366', 
+                      color: 'white', 
+                      padding: '10px 20px', 
+                      borderRadius: '8px',
+                      textDecoration: 'none',
+                      fontWeight: 'bold',
+                      fontSize: '14px'
+                    }}
+                  >
+                    <MessageCircle size={18} />
+                    Chat on WhatsApp
+                  </a>
+                </div>
               </form>
             )}
           </div>

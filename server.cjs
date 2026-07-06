@@ -58,6 +58,22 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+const sendAdminNotificationEmail = async (subject, text, attachments = []) => {
+  try {
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) return;
+    const mailOptions = {
+      from: `"Micro Technique AI" <${process.env.EMAIL_USER}>`,
+      to: 'techpandey09@gmail.com, microtechniqueit@gmail.com',
+      subject,
+      text,
+      attachments
+    };
+    await transporter.sendMail(mailOptions);
+  } catch (error) {
+    console.error('[EMAIL ERROR] Failed to send admin notification:', error);
+  }
+};
+
 // Store OTPs temporarily in memory: { email: { otp: '123456', expiresAt: Date } }
 const otpStore = new Map();
 
@@ -114,17 +130,20 @@ app.post('/api/register', async (req, res) => {
       const plans = await db.getPricingPlans();
       const plan = plans.find(p => p.id === parseInt(planId));
       if (plan) {
-        newClient.plan_name = plan.plan_name;
-        newClient.price = plan.price;
-      }
-    }
-    
-    if (newClient.payment_status === 'verification_pending') {
-      return res.status(201).json({ verificationPending: true, client: newClient });
-    }
     if (newClient.payment_status !== 'paid') {
+      // Notify Admins
+      await sendAdminNotificationEmail(
+        'New User Registration!',
+        `A new user has registered but payment is pending.\n\nCompany: ${companyName}\nEmail: ${email}\nSelected Plan: ${planName}`
+      );
       return res.status(201).json({ paymentRequired: true, client: newClient });
     }
+    
+    // Notify Admins
+    await sendAdminNotificationEmail(
+      'New Paid User Registration!',
+      `A new user has registered and their account is paid.\n\nCompany: ${companyName}\nEmail: ${email}\nSelected Plan: ${planName}`
+    );
 
     const token = jwt.sign({ id: newClient.id, email: newClient.email }, JWT_SECRET, { expiresIn: '24h' });
     res.json({ token, client: newClient });
@@ -174,6 +193,41 @@ app.post('/api/login', async (req, res) => {
 });
 
 // ==========================================
+// BACKGROUND JOBS
+// ==========================================
+
+// Run once every 24 hours to check for expiring plans
+setInterval(async () => {
+  try {
+    const clients = await db.pool.query('SELECT * FROM clients WHERE payment_status = $1', ['paid']);
+    const now = new Date();
+    
+    for (const client of clients.rows) {
+      if (!client.plan_expires_at) continue;
+      const expiresAt = new Date(client.plan_expires_at);
+      const diffTime = expiresAt - now;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === 3 || diffDays === 1) {
+        // Send email to admins
+        await sendAdminNotificationEmail(
+          `Action Required: Client Plan Expiring Soon (${client.company_name})`,
+          `The plan for ${client.company_name} (${client.email}) expires in ${diffDays} day(s).`
+        );
+      } else if (diffDays === 0) {
+        // Send email to admins
+        await sendAdminNotificationEmail(
+          `Alert: Client Plan Expired (${client.company_name})`,
+          `The plan for ${client.company_name} (${client.email}) has expired today.`
+        );
+      }
+    }
+  } catch (err) {
+    console.error('[EXPIRATION CRON ERROR]', err);
+  }
+}, 24 * 60 * 60 * 1000); // 24 hours
+
+// ==========================================
 // PASSWORD RESET (OTP)
 // ==========================================
 
@@ -184,13 +238,11 @@ app.post('/api/forgot-password', async (req, res) => {
 
     const client = await db.getClientByEmail(email);
     if (!client) {
-      // Don't leak if email exists or not, just return success
       return res.json({ success: true, message: 'If an account exists, an OTP has been sent.' });
     }
 
-    // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+    const expiresAt = Date.now() + 10 * 60 * 1000;
     
     otpStore.set(email.toLowerCase(), { otp, expiresAt });
 
@@ -203,8 +255,6 @@ app.post('/api/forgot-password', async (req, res) => {
 
     if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
       await transporter.sendMail(mailOptions);
-    } else {
-      console.warn(`[WARNING] Email credentials missing. OTP for ${email} is ${otp}`);
     }
 
     res.json({ success: true, message: 'OTP sent successfully' });
@@ -224,24 +274,12 @@ app.post('/api/reset-password', async (req, res) => {
     const emailKey = email.toLowerCase();
     const storedOtpData = otpStore.get(emailKey);
 
-    if (!storedOtpData) {
+    if (!storedOtpData || Date.now() > storedOtpData.expiresAt || storedOtpData.otp !== otp) {
       return res.status(400).json({ error: 'OTP expired or invalid' });
     }
 
-    if (Date.now() > storedOtpData.expiresAt) {
-      otpStore.delete(emailKey);
-      return res.status(400).json({ error: 'OTP has expired' });
-    }
-
-    if (storedOtpData.otp !== otp) {
-      return res.status(400).json({ error: 'Invalid OTP' });
-    }
-
-    // OTP is valid! Hash the new password and update
     const passwordHash = await bcrypt.hash(newPassword, 10);
     await db.updateClientPassword(emailKey, passwordHash);
-    
-    // Clear OTP after successful reset
     otpStore.delete(emailKey);
 
     res.json({ success: true, message: 'Password reset successful!' });
@@ -261,6 +299,11 @@ app.post('/api/submit-payment-receipt', async (req, res) => {
     
     const updatedClient = await db.updateClientReceipt(clientId, receiptBase64, planId);
     if (!updatedClient) return res.status(404).json({ error: 'Client not found' });
+    
+    await sendAdminNotificationEmail(
+      'New Payment Receipt Submitted',
+      `A new payment receipt has been submitted by Client ID: ${clientId}`
+    );
     
     res.json({ success: true, client: updatedClient });
   } catch (err) {
