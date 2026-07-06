@@ -130,11 +130,20 @@ app.post('/api/register', async (req, res) => {
       const plans = await db.getPricingPlans();
       const plan = plans.find(p => p.id === parseInt(planId));
       if (plan) {
+        newClient.plan_name = plan.plan_name;
+        newClient.price = plan.price;
+      }
+    }
+    
+    if (newClient.payment_status === 'verification_pending') {
+      return res.status(201).json({ verificationPending: true, client: newClient });
+    }
+    
     if (newClient.payment_status !== 'paid') {
       // Notify Admins
       await sendAdminNotificationEmail(
         'New User Registration!',
-        `A new user has registered but payment is pending.\n\nCompany: ${companyName}\nEmail: ${email}\nSelected Plan: ${planName}`
+        `A new user has registered but payment is pending.\n\nCompany: ${companyName}\nEmail: ${email}\nSelected Plan: ${newClient.plan_name}`
       );
       return res.status(201).json({ paymentRequired: true, client: newClient });
     }
@@ -142,7 +151,7 @@ app.post('/api/register', async (req, res) => {
     // Notify Admins
     await sendAdminNotificationEmail(
       'New Paid User Registration!',
-      `A new user has registered and their account is paid.\n\nCompany: ${companyName}\nEmail: ${email}\nSelected Plan: ${planName}`
+      `A new user has registered and their account is paid.\n\nCompany: ${companyName}\nEmail: ${email}\nSelected Plan: ${newClient.plan_name}`
     );
 
     const token = jwt.sign({ id: newClient.id, email: newClient.email }, JWT_SECRET, { expiresIn: '24h' });
