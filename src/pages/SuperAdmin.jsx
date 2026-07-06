@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Building, Users, Clock, LogOut, X, Check } from 'lucide-react';
+import { Shield, Building, Users, Clock, LogOut, X, Check, Mail, Eye, EyeOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function SuperAdmin() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [clients, setClients] = useState([]);
   const [demoRequests, setDemoRequests] = useState([]);
   const [pricingPlans, setPricingPlans] = useState([]);
@@ -16,14 +18,18 @@ export default function SuperAdmin() {
 
   const handleLogin = (e) => {
     e.preventDefault();
-    if (password === 'microtechnique2026') {
+    if (email === 'microtechniqueit@gmail.com' && password === 'microtechnique2026') {
       setIsAuthenticated(true);
       fetchClients();
       fetchDemoRequests();
       fetchPricingPlans();
     } else {
-      alert('Invalid super admin password');
+      alert('Invalid super admin credentials');
     }
+  };
+
+  const handleForgotPassword = () => {
+    alert("Super Admin password reset is disabled for security. Please contact the database administrator.");
   };
 
   const fetchClients = async () => {
@@ -124,19 +130,48 @@ export default function SuperAdmin() {
           </div>
           <form className="auth-form" onSubmit={handleLogin}>
             <div className="form-group">
-              <label>Master Password</label>
+              <label>Admin Email</label>
               <div className="input-wrapper">
-                <Shield className="input-icon" size={18} />
+                <Mail className="input-icon" size={18} />
                 <input
-                  type="password"
-                  placeholder="Enter super admin password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  type="email"
+                  placeholder="Enter admin email address"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
                 />
               </div>
             </div>
-            <button type="submit" className="auth-button">
+            
+            <div className="form-group">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <label style={{ margin: 0 }}>Master Password</label>
+                <span 
+                  onClick={handleForgotPassword}
+                  style={{ color: 'var(--color-primary)', fontSize: '12px', cursor: 'pointer' }}
+                >
+                  Forgot Password?
+                </span>
+              </div>
+              <div className="input-wrapper" style={{ display: 'flex', alignItems: 'center' }}>
+                <Shield className="input-icon" size={18} />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Enter super admin password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  style={{ flex: 1 }}
+                />
+                <div 
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{ cursor: 'pointer', padding: '0 10px', color: 'var(--text-muted)' }}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </div>
+              </div>
+            </div>
+            <button type="submit" className="auth-button" style={{ marginTop: '10px' }}>
               Access Dashboard
             </button>
             <button type="button" className="auth-button" style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', marginTop: '10px' }} onClick={() => navigate('/login')}>
