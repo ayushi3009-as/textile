@@ -71,9 +71,12 @@ export default function Landing() {
           setSubmitSuccess(false);
           setDemoForm({ name: '', email: '', phone: '', company: '' });
         }, 2000);
+      } else {
+        alert("Failed to submit request! The server might be unreachable or there's an issue with the form.");
       }
     } catch (error) {
       console.error('Failed to submit demo request:', error);
+      alert("Network Error: Could not connect to the server.");
     } finally {
       setIsSubmitting(false);
     }
@@ -408,7 +411,13 @@ export default function Landing() {
                   type="text" className="demo-input" placeholder="Company Name" required 
                   value={demoForm.company} onChange={e => setDemoForm({...demoForm, company: e.target.value})}
                 />
-                <button type="submit" className="demo-submit glow-effect" disabled={isSubmitting}>
+                <button 
+                  type="submit" 
+                  className="demo-submit" 
+                  disabled={isSubmitting}
+                  style={{ position: 'relative', zIndex: 100 }}
+                  onClick={() => console.log("Submit clicked")}
+                >
                   {isSubmitting ? 'Submitting...' : 'Submit Request'}
                 </button>
                 
