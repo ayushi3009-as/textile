@@ -401,8 +401,19 @@ app.post('/api/superadmin/pricing/:id', async (req, res) => {
 });
 
 // ==========================================
-// CALL LOGS & DASHBOARD ENDPOINTS
+// CALL LOGS, DASHBOARD & APPOINTMENTS ENDPOINTS
 // ==========================================
+
+// Get Appointments (Calendar)
+app.get('/api/appointments', authenticateToken, async (req, res) => {
+  try {
+    const appointments = await db.getAppointments(req.user.id);
+    res.json(appointments);
+  } catch (err) {
+    console.error('[API ERROR] /api/appointments:', err);
+    res.status(500).json({ error: 'Failed to fetch appointments' });
+  }
+});
 
 // 4. Test Endpoint to simulate a call for the dashboard
 app.get('/api/test-event', (req, res) => {
@@ -738,6 +749,7 @@ Your goal is to collect the following information in order. Ask the next questio
 3. Quantity?
 4. Sample product wanted?
 5. Name, Phone, City, and State?
+6. Would you like to schedule a callback or meeting with our sales team?
 
 Example of good behavior:
 User: I want premium cotton.
@@ -810,6 +822,7 @@ Return ONLY a raw JSON object with the following schema, and no other text:
   "color": "The color the user wants (e.g. pastel)",
   "quantity": "The quantity the user wants (e.g. 500 meters)",
   "wants_sample": true or false,
+  "appointment_time": "Date/Time if they want a meeting (e.g. 'Tomorrow at 3 PM'), else null",
   "status": "Spam", "Interested", or "Not Interested",
   "lead_temperature": "Warm" (if they engaged, wanted to buy, or asked for a sample) or "Cold" (if they were not interested, rude, or spam),
   "highlights": "A short 1-sentence summary of the call"
@@ -851,8 +864,15 @@ Return ONLY a raw JSON object with the following schema, and no other text:
             transcript: callTranscript
           };
           
+          let savedLead = null;
           try {
-            await db.saveLead(leadData, activeClientId);
+            savedLead = await db.saveLead(leadData, activeClientId);
+            
+            // If they asked for an appointment, save it to the DB!
+            if (extracted.appointment_time && savedLead && savedLead.id) {
+              console.log(`[APPOINTMENT] Booking meeting at ${extracted.appointment_time} for Lead ${savedLead.id}`);
+              await db.createAppointment(activeClientId, savedLead.id, extracted.appointment_time, extracted.highlights);
+            }
           } catch(e) {
             console.error('[DB ERROR] Failed to save lead at end of call', e.message);
           }

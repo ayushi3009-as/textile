@@ -70,6 +70,18 @@ const initDB = async () => {
       )
     `);
 
+    // Create appointments table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS appointments (
+        id SERIAL PRIMARY KEY,
+        client_id INTEGER REFERENCES clients(id),
+        lead_id INTEGER REFERENCES leads(id),
+        appointment_time VARCHAR(255),
+        description TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Create pricing_plans table
     await client.query(`
       CREATE TABLE IF NOT EXISTS pricing_plans (
@@ -370,6 +382,45 @@ const updateClientReceipt = async (id, receiptBase64, planId) => {
   }
 };
 
+const createAppointment = async (clientId, leadId, appointmentTime, description) => {
+  try {
+    const client = await pool.connect();
+    const result = await client.query(
+      'INSERT INTO appointments (client_id, lead_id, appointment_time, description) VALUES ($1, $2, $3, $4) RETURNING *',
+      [clientId, leadId, appointmentTime, description]
+    );
+    client.release();
+    return result.rows[0];
+  } catch (err) {
+    console.error('[DB ERROR] Failed to create appointment:', err);
+    throw err;
+  }
+};
+
+const getAppointments = async (clientId = null) => {
+  try {
+    const client = await pool.connect();
+    let query = `
+      SELECT a.*, l.name as lead_name, l.contact_number as lead_phone 
+      FROM appointments a
+      LEFT JOIN leads l ON a.lead_id = l.id
+    `;
+    let params = [];
+    if (clientId) {
+      query += ' WHERE a.client_id = $1';
+      params.push(clientId);
+    }
+    query += ' ORDER BY a.created_at DESC';
+    
+    const result = await client.query(query, params);
+    client.release();
+    return result.rows;
+  } catch (err) {
+    console.error('[DB ERROR] Failed to fetch appointments:', err);
+    throw err;
+  }
+};
+
 module.exports = {
   pool,
   initDB,
@@ -387,5 +438,7 @@ module.exports = {
   getPricingPlans,
   updatePricingPlan,
   updateClientPaymentStatus,
-  updateClientReceipt
+  updateClientReceipt,
+  createAppointment,
+  getAppointments
 };

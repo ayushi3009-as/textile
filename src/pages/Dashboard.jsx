@@ -3,7 +3,7 @@ import {
   Phone, ShieldAlert, Users, 
   Clock, Activity, MessageSquare, 
   RefreshCw, Volume2, AlertCircle, FileText,
-  Server, Zap, UploadCloud, Play, CheckCircle2, XCircle
+  Server, Zap, UploadCloud, Play, CheckCircle2, XCircle, Calendar, MessageCircle
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -16,6 +16,7 @@ export default function Dashboard() {
   const fileInputRef = React.useRef(null);
   const [campaignLeads, setCampaignLeads] = useState([]);
   const [selectedCampaignLead, setSelectedCampaignLead] = useState(null);
+  const [appointments, setAppointments] = useState([]);
   
   const [selectedCall, setSelectedCall] = useState(null);
   const [followUpLogs, setFollowUpLogs] = useState([]);
@@ -61,7 +62,25 @@ export default function Dashboard() {
         setIsLoading(false);
       }
     };
+    
+    const fetchAppointments = async () => {
+      if (!token) return;
+      try {
+        const API_URL = import.meta.env.VITE_API_URL || '';
+        const response = await fetch(`${API_URL}/api/appointments`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setAppointments(data || []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch appointments:", err);
+      }
+    };
+
     fetchLeads();
+    fetchAppointments();
   }, []);
 
   // Connect to SSE Backend
@@ -224,6 +243,15 @@ export default function Dashboard() {
               }}>
               Outbound Bulk Campaigns
             </button>
+            <button 
+              onClick={() => setActiveTab('calendar')}
+              style={{ 
+                padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '600',
+                background: activeTab === 'calendar' ? 'var(--color-primary)' : 'transparent',
+                color: activeTab === 'calendar' ? '#fff' : 'var(--text-secondary)'
+              }}>
+              Calendar & Meetings
+            </button>
           </div>
           <button
             className="btn btn-secondary" 
@@ -316,6 +344,7 @@ export default function Dashboard() {
                       <th>Color & Qty</th>
                       <th>Recording</th>
                       <th>Temperature</th>
+                      <th>Follow Up</th>
                       <th>Status</th>
                     </tr>
                   </thead>
@@ -376,6 +405,20 @@ export default function Dashboard() {
                               ❄️ Cold
                             </button>
                           </div>
+                        </td>
+                        <td>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const number = (c.phone || '').replace(/\D/g, '');
+                              const msg = encodeURIComponent(`Hi ${c.callerName || ''},\nThanks for calling ${companyName} today about ${c.product_wanted || 'our products'}. How can we assist you further?`);
+                              window.open(`https://wa.me/${number}?text=${msg}`, '_blank');
+                            }}
+                            className="btn" 
+                            style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', background: '#25D366', color: '#fff', border: 'none' }}
+                          >
+                            <MessageCircle size={14} /> WhatsApp
+                          </button>
                         </td>
                         <td>
                           <span className={`badge badge-${c.status?.toLowerCase().replace(' ', '')}`}>
@@ -612,6 +655,65 @@ export default function Dashboard() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Calendar Tab */}
+        {activeTab === 'calendar' && (
+          <div className="glass-panel" style={{ padding: '24px', minHeight: '600px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+              <div>
+                <h2 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Calendar size={24} style={{ color: 'var(--color-primary)' }}/> AI Booked Meetings
+                </h2>
+                <p style={{ color: 'var(--text-secondary)' }}>These appointments were successfully booked by the AI Voice Agent during calls.</p>
+              </div>
+            </div>
+
+            <div className="logs-table-container">
+              {appointments.length === 0 ? (
+                <div className="no-calls-placeholder" style={{ padding: '80px' }}>
+                  <AlertCircle size={32} />
+                  <span>No appointments booked yet. Let the AI take more calls!</span>
+                </div>
+              ) : (
+                <table className="logs-table" style={{ fontSize: '14px', width: '100%' }}>
+                  <thead>
+                    <tr>
+                      <th>Client Name</th>
+                      <th>Phone</th>
+                      <th>Meeting Date/Time</th>
+                      <th>Call Highlights</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {appointments.map((appt) => (
+                      <tr key={appt.id}>
+                        <td style={{ fontWeight: '600' }}>{appt.lead_name || 'Unknown'}</td>
+                        <td style={{ color: 'var(--text-secondary)' }}>{appt.lead_phone || '-'}</td>
+                        <td style={{ color: 'var(--color-primary)', fontWeight: 'bold' }}>{appt.appointment_time}</td>
+                        <td style={{ maxWidth: '300px' }}>{appt.description}</td>
+                        <td>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const number = (appt.lead_phone || '').replace(/\D/g, '');
+                              const msg = encodeURIComponent(`Hi ${appt.lead_name || ''},\nConfirming your meeting with ${companyName} for ${appt.appointment_time}. Are we still good for this time?`);
+                              window.open(`https://wa.me/${number}?text=${msg}`, '_blank');
+                            }}
+                            className="btn" 
+                            style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', background: '#25D366', color: '#fff', border: 'none' }}
+                          >
+                            <MessageCircle size={14} /> Send Reminder
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
           </div>
         )}
 
