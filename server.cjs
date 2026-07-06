@@ -8,6 +8,7 @@ const { DeepgramClient } = require('@deepgram/sdk');
 const Groq = require('groq-sdk');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
 const db = require('./db.cjs');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key';
@@ -47,6 +48,18 @@ function sendEventToAll(eventData) {
     client.res.write(`data: ${JSON.stringify(eventData)}\n\n`);
   });
 }
+
+// ========== EMAIL TRANSPORTER (OTP) ==========
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+});
+
+// Store OTPs temporarily in memory: { email: { otp: '123456', expiresAt: Date } }
+const otpStore = new Map();
 
 // ========== HTTP ROUTES ==========
 
@@ -147,6 +160,84 @@ app.post('/api/login', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+// ==========================================
+// PASSWORD RESET (OTP)
+// ==========================================
+
+app.post('/api/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+
+    const client = await db.getClientByEmail(email);
+    if (!client) {
+      // Don't leak if email exists or not, just return success
+      return res.json({ success: true, message: 'If an account exists, an OTP has been sent.' });
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+    
+    otpStore.set(email.toLowerCase(), { otp, expiresAt });
+
+    const mailOptions = {
+      from: `"Micro Technique AI" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Password Reset OTP - Micro Technique AI',
+      text: `Hello,\n\nYour OTP for password reset is: ${otp}\n\nThis OTP is valid for 10 minutes.\nIf you didn't request a password reset, please ignore this email.\n\nThanks,\nMicro Technique AI Team`
+    };
+
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+      await transporter.sendMail(mailOptions);
+    } else {
+      console.warn(`[WARNING] Email credentials missing. OTP for ${email} is ${otp}`);
+    }
+
+    res.json({ success: true, message: 'OTP sent successfully' });
+  } catch (err) {
+    console.error('[OTP ERROR]', err);
+    res.status(500).json({ error: 'Failed to send OTP' });
+  }
+});
+
+app.post('/api/reset-password', async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    if (!email || !otp || !newPassword) return res.status(400).json({ error: 'All fields are required' });
+    
+    if (newPassword.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters long' });
+
+    const emailKey = email.toLowerCase();
+    const storedOtpData = otpStore.get(emailKey);
+
+    if (!storedOtpData) {
+      return res.status(400).json({ error: 'OTP expired or invalid' });
+    }
+
+    if (Date.now() > storedOtpData.expiresAt) {
+      otpStore.delete(emailKey);
+      return res.status(400).json({ error: 'OTP has expired' });
+    }
+
+    if (storedOtpData.otp !== otp) {
+      return res.status(400).json({ error: 'Invalid OTP' });
+    }
+
+    // OTP is valid! Hash the new password and update
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await db.updateClientPassword(emailKey, passwordHash);
+    
+    // Clear OTP after successful reset
+    otpStore.delete(emailKey);
+
+    res.json({ success: true, message: 'Password reset successful!' });
+  } catch (err) {
+    console.error('[RESET PASS ERROR]', err);
+    res.status(500).json({ error: 'Failed to reset password' });
   }
 });
 

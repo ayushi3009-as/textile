@@ -220,6 +220,20 @@ const getClientByTwilioNumber = async (twilioNumber) => {
   }
 };
 
+const updateClientPassword = async (email, newPasswordHash) => {
+  try {
+    const client = await pool.connect();
+    const result = await client.query(
+      'UPDATE clients SET password_hash = $1 WHERE email = $2 RETURNING id, email',
+      [newPasswordHash, email]
+    );
+    client.release();
+    return result.rows[0];
+  } catch (err) {
+    throw err;
+  }
+};
+
 const getAllClientsStats = async () => {
   try {
     const client = await pool.connect();
@@ -440,5 +454,6 @@ module.exports = {
   updateClientPaymentStatus,
   updateClientReceipt,
   createAppointment,
-  getAppointments
+  getAppointments,
+  updateClientPassword
 };

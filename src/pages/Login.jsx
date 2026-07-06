@@ -10,6 +10,8 @@ export default function Login() {
   const [forgotPassMode, setForgotPassMode] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
@@ -44,28 +46,70 @@ export default function Login() {
     }
   };
 
-  const handleForgotPassword = (e) => {
+  const handleForgotPassword = async (e) => {
     e.preventDefault();
     if (!email) {
       setError("Please enter your email address first to reset password.");
       return;
     }
     setError('');
-    // Mock OTP sending
-    setOtpSent(true);
-    alert(`A 6-digit OTP has been sent to ${email}`);
+    setIsLoading(true);
+    
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || '';
+      const res = await fetch(`${API_URL}/api/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to send OTP');
+      
+      setOtpSent(true);
+      alert(`A 6-digit OTP has been sent to ${email}`);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleVerifyOtp = (e) => {
+  const handleVerifyOtp = async (e) => {
     e.preventDefault();
-    if (otp === '123456') { // Mock OTP validation
+    if (!otp || !newPassword) {
+      setError("Please enter both OTP and a new password.");
+      return;
+    }
+    if (newPassword.length < 8) {
+      setError("Password must be at least 8 characters long.");
+      return;
+    }
+    
+    setError('');
+    setIsLoading(true);
+    
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || '';
+      const res = await fetch(`${API_URL}/api/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp, newPassword })
+      });
+      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to reset password');
+      
       alert("Password reset successful! You can now login with your new password.");
       setForgotPassMode(false);
       setOtpSent(false);
       setPassword('');
+      setNewPassword('');
       setOtp('');
-    } else {
-      setError("Invalid OTP. For this demo, please enter '123456'");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -168,16 +212,19 @@ export default function Login() {
                   <input 
                     type="password" 
                     required
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
                     className="auth-input"
                     placeholder="Enter new password"
+                    minLength={8}
                   />
                 </div>
               </>
             )}
 
-            <button type="submit" className="auth-button">
+            <button type="submit" className="auth-button" disabled={isLoading}>
               <KeyRound size={18} />
-              {otpSent ? 'Verify OTP & Reset' : 'Send OTP via Email'}
+              {isLoading ? 'Processing...' : (otpSent ? 'Verify OTP & Reset' : 'Send OTP via Email')}
             </button>
             <button 
               type="button" 
