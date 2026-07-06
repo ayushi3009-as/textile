@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { LogIn, PhoneCall } from 'lucide-react';
+import { LogIn, PhoneCall, Eye, EyeOff, KeyRound } from 'lucide-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [forgotPassMode, setForgotPassMode] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otp, setOtp] = useState('');
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
@@ -40,6 +44,31 @@ export default function Login() {
     }
   };
 
+  const handleForgotPassword = (e) => {
+    e.preventDefault();
+    if (!email) {
+      setError("Please enter your email address first to reset password.");
+      return;
+    }
+    setError('');
+    // Mock OTP sending
+    setOtpSent(true);
+    alert(`A 6-digit OTP has been sent to ${email}`);
+  };
+
+  const handleVerifyOtp = (e) => {
+    e.preventDefault();
+    if (otp === '123456') { // Mock OTP validation
+      alert("Password reset successful! You can now login with your new password.");
+      setForgotPassMode(false);
+      setOtpSent(false);
+      setPassword('');
+      setOtp('');
+    } else {
+      setError("Invalid OTP. For this demo, please enter '123456'");
+    }
+  };
+
   return (
     <div className="auth-container">
       <div className="auth-card">
@@ -53,39 +82,113 @@ export default function Login() {
 
         {error && <div className="auth-error">{error}</div>}
 
-        <form onSubmit={handleLogin} className="auth-form">
-          <div className="auth-field">
-            <label className="auth-label">Email Address</label>
-            <input 
-              type="email" 
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="auth-input"
-              placeholder="you@company.com"
-            />
-          </div>
-          
-          <div className="auth-field">
-            <label className="auth-label">Password</label>
-            <input 
-              type="password" 
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="auth-input"
-              placeholder="••••••••"
-            />
-          </div>
+        {!forgotPassMode ? (
+          <form onSubmit={handleLogin} className="auth-form">
+            <div className="auth-field">
+              <label className="auth-label">Email Address</label>
+              <input 
+                type="email" 
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="auth-input"
+                placeholder="you@company.com"
+              />
+            </div>
+            
+            <div className="auth-field">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label className="auth-label">Password</label>
+                <span 
+                  onClick={() => setForgotPassMode(true)}
+                  style={{ fontSize: '12px', color: 'var(--color-primary)', cursor: 'pointer', fontWeight: '500' }}
+                >
+                  Forgot Password?
+                </span>
+              </div>
+              <div style={{ position: 'relative' }}>
+                <input 
+                  type={showPassword ? "text" : "password"} 
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="auth-input"
+                  placeholder="••••••••"
+                  style={{ paddingRight: '40px' }}
+                />
+                <button 
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{ 
+                    position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)',
+                    background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer'
+                  }}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
 
-          <button 
-            type="submit"
-            className="auth-button"
-          >
-            <LogIn size={18} />
-            Sign In
-          </button>
-        </form>
+            <button type="submit" className="auth-button">
+              <LogIn size={18} />
+              Sign In
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={otpSent ? handleVerifyOtp : handleForgotPassword} className="auth-form">
+            <div className="auth-field">
+              <label className="auth-label">Email to send OTP</label>
+              <input 
+                type="email" 
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="auth-input"
+                placeholder="you@company.com"
+                disabled={otpSent}
+              />
+            </div>
+
+            {otpSent && (
+              <>
+                <div className="auth-field">
+                  <label className="auth-label">Enter 6-Digit OTP</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    className="auth-input"
+                    placeholder="123456"
+                    maxLength={6}
+                  />
+                </div>
+                <div className="auth-field">
+                  <label className="auth-label">New Password</label>
+                  <input 
+                    type="password" 
+                    required
+                    className="auth-input"
+                    placeholder="Enter new password"
+                  />
+                </div>
+              </>
+            )}
+
+            <button type="submit" className="auth-button">
+              <KeyRound size={18} />
+              {otpSent ? 'Verify OTP & Reset' : 'Send OTP via Email'}
+            </button>
+            <button 
+              type="button" 
+              onClick={() => { setForgotPassMode(false); setOtpSent(false); setError(''); }}
+              className="btn btn-secondary"
+              style={{ width: '100%', marginTop: '12px', background: 'transparent' }}
+            >
+              Back to Login
+            </button>
+          </form>
+        )}
 
         <p className="auth-footer">
           Don't have an account? <Link to="/register" className="auth-link">Create one</Link>
