@@ -58,8 +58,8 @@ export default function Landing() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const API_URL = import.meta.env.VITE_API_URL || '';
-      const response = await fetch(`${API_URL}/api/demo-requests`, {
+      const API_URL = import.meta.env.VITE_API_URL || 'https://api.tivra.marketing';
+      const response = await fetch(`${API_URL}/api/demo-request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(demoForm)
