@@ -508,6 +508,13 @@ app.put('/api/superadmin/clients/:id/payment', async (req, res) => {
 app.post('/api/demo-requests', async (req, res) => {
   try {
     const request = await db.saveDemoRequest(req.body);
+    
+    // Notify Admins
+    await sendAdminNotificationEmail(
+      'New Demo Request Received!',
+      `A new demo request has been submitted:\n\nName: ${req.body.name}\nEmail: ${req.body.email}\nPhone: ${req.body.phone}\nCompany: ${req.body.company}`
+    );
+    
     res.json(request);
   } catch (err) {
     console.error('[API ERROR] /api/demo-requests:', err);
