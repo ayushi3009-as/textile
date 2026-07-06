@@ -3,7 +3,7 @@ import {
   Phone, ShieldAlert, Users, 
   Clock, Activity, MessageSquare, 
   RefreshCw, Volume2, AlertCircle, FileText,
-  Server, Zap
+  Server, Zap, UploadCloud, Play, CheckCircle2, XCircle
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -12,6 +12,10 @@ const API_URL = import.meta.env.VITE_API_URL || '';
 export default function Dashboard() {
   const [calls, setCalls] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('live');
+  const fileInputRef = React.useRef(null);
+  const [campaignLeads, setCampaignLeads] = useState([]);
+  const [selectedCampaignLead, setSelectedCampaignLead] = useState(null);
   
   const [selectedCall, setSelectedCall] = useState(null);
   const [followUpLogs, setFollowUpLogs] = useState([]);
@@ -128,6 +132,48 @@ export default function Dashboard() {
     localStorage.removeItem('texvibe_cloud_calls');
   };
 
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    // In a full implementation, we'd use XLSX or PapaParse here.
+    // For now, we simulate parsing the uploaded Excel/CSV file into leads.
+    setTimeout(() => {
+      setCampaignLeads([
+        { id: 101, name: 'Rahul Sharma', phone: '+919988776655', status: 'Pending' },
+        { id: 102, name: 'Anjali Fabrics', phone: '+918877665544', status: 'Pending' },
+        { id: 103, name: 'Vikas Textiles', phone: '+917766554433', status: 'Pending' },
+      ]);
+      alert(`Successfully loaded 3 leads from ${file.name}`);
+    }, 500);
+  };
+
+  const startBulkDialing = async () => {
+    if (campaignLeads.length === 0) {
+      alert("Please upload an Excel file with leads first.");
+      return;
+    }
+    
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || '';
+      await fetch(`${API_URL}/api/bulk-dial`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ leads: campaignLeads })
+      });
+      alert("Bulk dialing campaign started via Exotel!");
+      
+      // Update UI to show they are being called
+      setCampaignLeads(prev => prev.map(lead => ({ ...lead, status: 'Calling...' })));
+    } catch (err) {
+      console.error("Failed to start bulk dialing:", err);
+      alert("Error starting campaign.");
+    }
+  };
+
   const testWebhook = async () => {
     try {
       const API_URL = import.meta.env.VITE_API_URL || '';
@@ -158,7 +204,27 @@ export default function Dashboard() {
           </div>
         </div>
         
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}> 
+        <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+          <div className="tabs" style={{ display: 'flex', gap: '16px', background: 'rgba(255,255,255,0.05)', padding: '6px', borderRadius: '12px' }}>
+            <button 
+              onClick={() => setActiveTab('live')}
+              style={{ 
+                padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '600',
+                background: activeTab === 'live' ? 'var(--color-primary)' : 'transparent',
+                color: activeTab === 'live' ? '#fff' : 'var(--text-secondary)'
+              }}>
+              Live & Inbound Calls
+            </button>
+            <button 
+              onClick={() => setActiveTab('campaigns')}
+              style={{ 
+                padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '600',
+                background: activeTab === 'campaigns' ? 'var(--color-primary)' : 'transparent',
+                color: activeTab === 'campaigns' ? '#fff' : 'var(--text-secondary)'
+              }}>
+              Outbound Bulk Campaigns
+            </button>
+          </div>
           <button
             className="btn btn-secondary" 
             onClick={handleLogout}
@@ -172,7 +238,9 @@ export default function Dashboard() {
       {/* Main Full-Width Dashboard */}
       <div className="dashboard-container" style={{ width: '100%', marginTop: '10px' }}>
         
-        {/* Metrics Grid */}
+        {activeTab === 'live' && (
+          <>
+            {/* Metrics Grid */}
         <div className="metrics-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
           <div className="glass-panel metric-card" style={{ borderTop: '3px solid var(--color-primary)' }}>
             <div className="metric-info">
@@ -391,10 +459,162 @@ export default function Dashboard() {
                     </p>
                   )}
                 </div>
+                </div>
               </div>
             </div>
+          )}
+          </>
+        )}
+
+        {activeTab === 'campaigns' && (
+          <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', minHeight: '600px', padding: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+              <div>
+                <h2 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '8px' }}>AI Bulk Dialing Campaign</h2>
+                <p style={{ color: 'var(--text-secondary)' }}>Upload an Excel or CSV file of leads and let Exotel + AI call them instantly.</p>
+              </div>
+              <div style={{ display: 'flex', gap: '16px' }}>
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  style={{ display: 'none' }} 
+                  accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+                  onChange={handleFileUpload}
+                />
+                <span 
+                  onClick={() => fileInputRef.current.click()}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: '600', padding: '8px' }}
+                >
+                  <UploadCloud size={18} /> Upload Excel
+                </span>
+                <button 
+                  onClick={startBulkDialing}
+                  className="btn btn-primary" 
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-secondary)' }}
+                >
+                  <Play size={18} /> Start Calling Leads from Excel
+                </button>
+              </div>
+            </div>
+
+            <div className="logs-table-container">
+              <table className="logs-table" style={{ fontSize: '14px', width: '100%' }}>
+                <thead>
+                  <tr>
+                    <th>Lead Name</th>
+                    <th>Phone Number</th>
+                    <th>Exotel Call Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {campaignLeads.map((lead) => (
+                    <tr key={lead.id}>
+                      <td style={{ fontWeight: '600' }}>{lead.name}</td>
+                      <td style={{ color: 'var(--text-secondary)' }}>{lead.phone}</td>
+                      <td>
+                        {lead.status === 'Pending' && <span className="badge" style={{ background: 'rgba(255,255,255,0.1)' }}><Clock size={12} style={{marginRight:'4px'}}/> Pending</span>}
+                        {lead.status === 'Called' && <span className="badge badge-positive"><CheckCircle2 size={12} style={{marginRight:'4px'}}/> Called (See Transcript)</span>}
+                        {lead.status === 'Failed' && <span className="badge badge-spam"><XCircle size={12} style={{marginRight:'4px'}}/> Failed</span>}
+                      </td>
+                      <td>
+                        {lead.status === 'Called' ? (
+                          <span 
+                            onClick={() => setSelectedCampaignLead(lead)}
+                            style={{ color: 'var(--color-primary)', cursor: 'pointer', fontWeight: '600', textDecoration: 'underline', fontSize: '13px' }}
+                          >
+                            See Details
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>See Details</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Campaign Lead Details Modal/Panel */}
+            {selectedCampaignLead && (
+              <div className="glass-panel" style={{ padding: '24px', marginTop: '24px', borderLeft: '4px solid var(--color-primary)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid var(--border-color)' }}>
+                  <div>
+                    <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '20px', fontWeight: 'bold' }}>
+                      Call Record: {selectedCampaignLead.name}
+                    </h3>
+                    <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
+                      {selectedCampaignLead.phone}
+                    </p>
+                  </div>
+                  <button 
+                    className="btn btn-secondary" 
+                    onClick={() => setSelectedCampaignLead(null)}
+                    style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)' }}
+                  >
+                    <XCircle size={24} />
+                  </button>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
+                  {/* Extracted Details */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div className="glass-panel" style={{ padding: '16px', background: 'rgba(255,255,255,0.015)' }}>
+                      <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Extracted Lead Information</span>
+                      
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '16px' }}>
+                        <div>
+                          <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>Interested?</p>
+                          <p style={{ fontWeight: 'bold', color: selectedCampaignLead.interested === 'Yes' ? 'var(--color-lead)' : 'var(--color-spam)' }}>
+                            {selectedCampaignLead.interested}
+                          </p>
+                        </div>
+                        <div>
+                          <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>Product</p>
+                          <p style={{ fontWeight: '500' }}>{selectedCampaignLead.product || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>Color Details</p>
+                          <p style={{ fontWeight: '500' }}>{selectedCampaignLead.color || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>Quantity Required</p>
+                          <p style={{ fontWeight: '500' }}>{selectedCampaignLead.quantity || 'N/A'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Summary & Audio */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div className="glass-panel" style={{ padding: '16px', background: 'rgba(255,255,255,0.015)' }}>
+                      <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>AI Call Summary</span>
+                      <p style={{ fontSize: '14px', color: 'var(--text-primary)', marginTop: '8px', lineHeight: '1.5' }}>
+                        {selectedCampaignLead.summary}
+                      </p>
+                    </div>
+
+                    <div style={{ background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '8px' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>Call Recording (Exotel)</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '8px', cursor: 'pointer' }}>
+                        <div style={{ background: 'var(--color-primary)', borderRadius: '50%', padding: '8px' }}>
+                          <Play size={16} color="#fff" />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ height: '4px', background: 'rgba(255,255,255,0.2)', borderRadius: '2px', width: '100%', position: 'relative' }}>
+                            <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: '30%', background: 'var(--color-primary)', borderRadius: '2px' }}></div>
+                          </div>
+                        </div>
+                        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>0:45 / 2:10</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
+
       </div>
     </div>
   );

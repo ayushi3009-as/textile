@@ -176,7 +176,12 @@ const createClient = async (companyName, email, passwordHash, twilioNumber = nul
 const getClientByEmail = async (email) => {
   try {
     const client = await pool.connect();
-    const result = await client.query('SELECT * FROM clients WHERE email = $1', [email]);
+    const result = await client.query(`
+      SELECT c.*, p.plan_name, p.price 
+      FROM clients c 
+      LEFT JOIN pricing_plans p ON c.plan_id = p.id 
+      WHERE c.email = $1
+    `, [email]);
     client.release();
     return result.rows[0];
   } catch (err) {
@@ -351,12 +356,12 @@ const updateClientPaymentStatus = async (id, status) => {
   }
 };
 
-const updateClientReceipt = async (id, receiptBase64) => {
+const updateClientReceipt = async (id, receiptBase64, planId) => {
   try {
     const client = await pool.connect();
     const result = await client.query(
-      'UPDATE clients SET payment_receipt = $1, payment_status = $2 WHERE id = $3 RETURNING *',
-      [receiptBase64, 'verification_pending', id]
+      'UPDATE clients SET payment_receipt = $1, payment_status = $2, plan_id = $3 WHERE id = $4 RETURNING *',
+      [receiptBase64, 'verification_pending', planId, id]
     );
     client.release();
     return result.rows[0];

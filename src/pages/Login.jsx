@@ -26,7 +26,7 @@ export default function Login() {
           return;
         }
         if (data.paymentRequired) {
-          navigate('/payment', { state: { client: data.client } });
+          navigate('/payment', { state: { client: data.client, rejected: data.rejected } });
           return;
         }
         throw new Error(data.error);

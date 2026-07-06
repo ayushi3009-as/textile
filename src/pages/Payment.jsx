@@ -1,16 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { CreditCard, CheckCircle2, Upload, FileImage, ShieldCheck } from 'lucide-react';
+import { CreditCard, CheckCircle2, Upload, ShieldCheck } from 'lucide-react';
 
 export default function Payment() {
   const location = useLocation();
   const navigate = useNavigate();
   const clientData = location.state?.client;
+  const isRejected = location.state?.rejected;
   
   const [loading, setLoading] = useState(false);
   const [verificationPending, setVerificationPending] = useState(clientData?.payment_status === 'verification_pending');
   const [error, setError] = useState('');
   const [receiptImage, setReceiptImage] = useState(null);
+  const [plans, setPlans] = useState([]);
+  const [selectedPlanId, setSelectedPlanId] = useState('');
+
+  useEffect(() => {
+    const fetchPlans = async () => {
+      try {
+        const API_URL = import.meta.env.VITE_API_URL || '';
+        const res = await fetch(`${API_URL}/api/pricing`);
+        const data = await res.json();
+        setPlans(data);
+        if (data.length > 0) {
+          // Default to their previously selected plan, or the first one
+          const defaultPlan = data.find(p => p.plan_name === clientData?.plan_name) || data[0];
+          setSelectedPlanId(defaultPlan.id);
+        }
+      } catch (err) {
+        console.error('Failed to load plans', err);
+      }
+    };
+    fetchPlans();
+  }, [clientData]);
 
   // If someone manually navigates here without a client context
   if (!clientData) {
@@ -54,7 +76,7 @@ export default function Payment() {
       const res = await fetch(`${API_URL}/api/submit-payment-receipt`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientId: clientData.id, receiptBase64: receiptImage })
+        body: JSON.stringify({ clientId: clientData.id, receiptBase64: receiptImage, planId: selectedPlanId })
       });
       
       const data = await res.json();
@@ -92,20 +114,47 @@ export default function Payment() {
           </div>
         ) : (
           <>
+            {isRejected && (
+              <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', padding: '15px', borderRadius: '8px', marginBottom: '20px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                <strong>Payment Rejected:</strong> Your previous receipt was not accepted. Please ensure the transaction is successful and upload a clear screenshot.
+              </div>
+            )}
+
             <div className="auth-icon-wrapper" style={{ margin: '0 auto 20px', background: 'rgba(79, 70, 229, 0.1)', color: '#4f46e5' }}>
               <CreditCard size={32} />
             </div>
             <h1 className="auth-title">Complete Your Subscription</h1>
             <p className="auth-subtitle">Scan the QR code below to pay securely via UPI.</p>
             
+            <div style={{ background: 'var(--bg-secondary)', padding: '20px', borderRadius: '12px', margin: '20px 0', textAlign: 'left' }}>
+              <h4 style={{ marginBottom: '15px' }}>Select Your Plan</h4>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <select 
+                  value={selectedPlanId} 
+                  onChange={(e) => setSelectedPlanId(e.target.value)}
+                  className="auth-input"
+                  style={{ width: '70%', marginBottom: 0, padding: '10px' }}
+                >
+                  {plans.map(p => (
+                    <option key={p.id} value={p.id}>{p.plan_name}</option>
+                  ))}
+                </select>
+                <span style={{ fontSize: '18px', fontWeight: 700, color: 'var(--color-primary)' }}>
+                  {plans.find(p => p.id.toString() === selectedPlanId.toString())?.price || '$0'}
+                </span>
+              </div>
+            </div>
+
             <div style={{ background: 'var(--bg-secondary)', padding: '30px', borderRadius: '12px', margin: '20px 0' }}>
               <img 
-                src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=admin@texvibe&pn=MicroTechnique" 
+                src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi://pay?pa=9712922340@barodampay&pn=MICROTECHNIQUE%20IT%20AND%20COMMUNICATIONS%20SOL" 
                 alt="UPI QR Code" 
-                style={{ width: '200px', height: '200px', margin: '0 auto', display: 'block', borderRadius: '8px', background: 'white', padding: '10px' }}
+                style={{ width: '250px', height: '250px', margin: '0 auto', display: 'block', borderRadius: '8px', background: 'white', padding: '10px' }}
               />
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '20px', textAlign: 'center' }}>
-                UPI ID: <strong>admin@texvibe</strong>
+              <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginTop: '20px', textAlign: 'center' }}>
+                UPI ID: <strong style={{ color: 'var(--color-primary)' }}>9712922340@barodampay</strong>
+                <br />
+                <span style={{ fontSize: '12px', opacity: 0.8 }}>MICROTECHNIQUE IT AND COMMUNICATIONS SOL</span>
               </p>
             </div>
 

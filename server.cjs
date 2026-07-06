@@ -88,11 +88,23 @@ app.post('/api/register', async (req, res) => {
     const { companyName, email, password, twilioNumber, planId } = req.body;
     if (!companyName || !email || !password) return res.status(400).json({ error: 'Missing fields' });
     
+    if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters long' });
+    
     const existingClient = await db.getClientByEmail(email);
     if (existingClient) return res.status(400).json({ error: 'Email already in use' });
     
     const passwordHash = await bcrypt.hash(password, 10);
-    const newClient = await db.createClient(companyName, email, passwordHash, twilioNumber, planId);
+    const twilioNumToSave = twilioNumber && twilioNumber.trim() !== '' ? twilioNumber.trim() : null;
+    const newClient = await db.createClient(companyName, email, passwordHash, twilioNumToSave, planId);
+    
+    if (planId) {
+      const plans = await db.getPricingPlans();
+      const plan = plans.find(p => p.id === parseInt(planId));
+      if (plan) {
+        newClient.plan_name = plan.plan_name;
+        newClient.price = plan.price;
+      }
+    }
     
     if (newClient.payment_status === 'verification_pending') {
       return res.status(201).json({ verificationPending: true, client: newClient });
@@ -122,8 +134,12 @@ app.post('/api/login', async (req, res) => {
       return res.status(403).json({ error: 'Your payment is currently under review by our team.', verificationPending: true });
     }
     
+    if (client.payment_status === 'pending' && client.payment_receipt) {
+      return res.status(403).json({ error: 'Your previous payment receipt was rejected. Please try again.', paymentRequired: true, rejected: true, client: { id: client.id, email: client.email, plan_name: client.plan_name, price: client.price } });
+    }
+    
     if (client.payment_status !== 'paid') {
-      return res.status(403).json({ error: 'Payment required to access the dashboard.', paymentRequired: true, client: { id: client.id, email: client.email } });
+      return res.status(403).json({ error: 'Payment required to access the dashboard.', paymentRequired: true, client: { id: client.id, email: client.email, plan_name: client.plan_name, price: client.price } });
     }
     
     const token = jwt.sign({ id: client.id, email: client.email }, JWT_SECRET, { expiresIn: '24h' });
@@ -139,10 +155,10 @@ app.post('/api/login', async (req, res) => {
 // ==========================================
 app.post('/api/submit-payment-receipt', async (req, res) => {
   try {
-    const { clientId, receiptBase64 } = req.body;
-    if (!clientId || !receiptBase64) return res.status(400).json({ error: 'Missing data' });
+    const { clientId, receiptBase64, planId } = req.body;
+    if (!clientId || !receiptBase64 || !planId) return res.status(400).json({ error: 'Missing data' });
     
-    const updatedClient = await db.updateClientReceipt(clientId, receiptBase64);
+    const updatedClient = await db.updateClientReceipt(clientId, receiptBase64, planId);
     if (!updatedClient) return res.status(404).json({ error: 'Client not found' });
     
     res.json({ success: true, client: updatedClient });
@@ -412,6 +428,66 @@ app.get('/api/test-event', (req, res) => {
   };
   sendEventToAll({ type: 'new_call', data: testCall });
   res.json({ status: 'success', message: 'Test call sent to dashboard.' });
+});
+
+// 5. Bulk Dial API using Exotel
+app.post('/api/bulk-dial', authenticateToken, async (req, res) => {
+  const { leads } = req.body;
+  if (!leads || !Array.isArray(leads)) return res.status(400).json({ error: 'No leads provided' });
+
+  const accountSid = process.env.EXOTEL_ACCOUNT_SID;
+  const apiKey = process.env.EXOTEL_API_KEY;
+  const apiToken = process.env.EXOTEL_API_TOKEN;
+  const exoPhone = process.env.EXOTEL_EXOPHONE;
+  const appId = process.env.EXOTEL_APP_ID;
+
+  if (!accountSid || !apiKey || !apiToken) {
+    return res.status(500).json({ error: 'Exotel credentials not configured in backend' });
+  }
+
+  const auth = Buffer.from(`${apiKey}:${apiToken}`).toString('base64');
+  let successfulDials = 0;
+
+  for (const lead of leads) {
+    try {
+      console.log(`[EXOTEL] Triggering outbound call to ${lead.phone}...`);
+      
+      const formData = new URLSearchParams();
+      // 'From' is the lead's number to call
+      formData.append('From', lead.phone);
+      // 'CallerId' is your ExoPhone number that shows up on their phone
+      formData.append('CallerId', exoPhone);
+      // Connect them to your App Studio flow (once Voicebot Applet is added there)
+      formData.append('Url', `http://my.exotel.com/${accountSid}/exoml/start_voice/${appId}`);
+      // Send lead details to your App as CustomField (Exotel will pass this to our webhook later)
+      formData.append('CustomField', JSON.stringify({ name: lead.name, id: lead.id }));
+
+      const response = await fetch(`https://api.exotel.com/v1/Accounts/${accountSid}/Calls/connect.json`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${auth}`,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: formData
+      });
+
+      const responseData = await response.json();
+      
+      if (response.ok) {
+        console.log(`[EXOTEL] Call queued for ${lead.phone}. Call SID: ${responseData.Call?.Sid}`);
+        successfulDials++;
+      } else {
+        console.error(`[EXOTEL] Failed to dial ${lead.phone}:`, responseData);
+      }
+      
+      // Delay slightly between calls to prevent rate limiting
+      await new Promise(resolve => setTimeout(resolve, 500));
+    } catch (err) {
+      console.error(`[EXOTEL] Network error dialing ${lead.phone}:`, err.message);
+    }
+  }
+
+  res.json({ status: 'success', message: `Triggered ${successfulDials} calls via Exotel` });
 });
 
 // 4. Health check
