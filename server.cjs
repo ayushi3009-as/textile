@@ -746,6 +746,7 @@ wss.on('connection', (ws, req) => {
           ws.send(JSON.stringify({
             event: 'media',
             streamSid: streamSid,
+            stream_sid: streamSid, // Exotel support
             media: {
               payload: chunk.toString('base64')
             }
@@ -758,6 +759,7 @@ wss.on('connection', (ws, req) => {
         ws.send(JSON.stringify({
           event: 'mark',
           streamSid: streamSid,
+          stream_sid: streamSid, // Exotel support
           mark: { name: 'ai-speech-done' }
         }));
       }
@@ -872,9 +874,9 @@ wss.on('connection', (ws, req) => {
       const msg = JSON.parse(message);
       
       if (msg.event === 'start') {
-        streamSid = msg.start.streamSid;
+        streamSid = msg.start.streamSid || msg.start.stream_sid;
         // Handle both Twilio and Exotel parameter structures
-        callSid = msg.start.callSid || (msg.start.customParameters && msg.start.customParameters.callSid) || 'Unknown';
+        callSid = msg.start.callSid || msg.start.call_sid || (msg.start.customParameters && msg.start.customParameters.callSid) || 'Unknown';
         
         let caller = 'Unknown';
         let virtualNum = 'Unknown';
@@ -882,6 +884,9 @@ wss.on('connection', (ws, req) => {
         if (msg.start.customParameters) {
           caller = msg.start.customParameters.callerNumber || 'Unknown';
           virtualNum = msg.start.customParameters.twilioNumber || msg.start.customParameters.virtualNumber || 'Unknown';
+        } else if (msg.start.from || msg.start.to) { // Exotel format
+          caller = msg.start.from || 'Unknown';
+          virtualNum = msg.start.to || 'Unknown';
         }
         
         callerNumber = caller;
