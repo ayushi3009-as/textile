@@ -20,6 +20,8 @@ const initDB = async () => {
         system_prompt TEXT,
         payment_status VARCHAR(50) DEFAULT 'pending',
         plan_id INTEGER REFERENCES pricing_plans(id),
+        plan_expires_at TIMESTAMP,
+        total_call_seconds INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -36,6 +38,12 @@ const initDB = async () => {
         EXCEPTION WHEN duplicate_column THEN END;
         BEGIN
           ALTER TABLE clients ADD COLUMN payment_receipt TEXT;
+        EXCEPTION WHEN duplicate_column THEN END;
+        BEGIN
+          ALTER TABLE clients ADD COLUMN plan_expires_at TIMESTAMP;
+        EXCEPTION WHEN duplicate_column THEN END;
+        BEGIN
+          ALTER TABLE clients ADD COLUMN total_call_seconds INTEGER DEFAULT 0;
         EXCEPTION WHEN duplicate_column THEN END;
       END $$;
     `);
@@ -54,6 +62,7 @@ const initDB = async () => {
         status VARCHAR(50),
         highlights TEXT,
         transcript JSONB,
+        duration_seconds INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -117,8 +126,8 @@ const initDB = async () => {
 const saveLead = async (leadData, clientId = null) => {
   try {
     const query = `
-      INSERT INTO leads (twilio_call_sid, caller_number, name, contact_number, city, state, status, highlights, transcript, client_id, product_wanted, color, quantity, wants_sample, lead_temperature)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+      INSERT INTO leads (twilio_call_sid, caller_number, name, contact_number, city, state, status, highlights, transcript, client_id, product_wanted, color, quantity, wants_sample, lead_temperature, duration_seconds)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
       RETURNING *
     `;
     const values = [
@@ -136,7 +145,8 @@ const saveLead = async (leadData, clientId = null) => {
       leadData.color,
       leadData.quantity,
       leadData.wants_sample,
-      leadData.lead_temperature || 'Unknown'
+      leadData.lead_temperature || 'Unknown',
+      leadData.duration_seconds || 0
     ];
     
     const client = await pool.connect();
@@ -243,15 +253,22 @@ const getAllClientsStats = async () => {
         c.company_name, 
         c.email, 
         c.twilio_number,
-        c.plan_expires_at,
+        c.system_prompt,
         c.payment_status,
         c.payment_receipt,
-        p.plan_name,
+        c.plan_id,
+        c.plan_expires_at,
+        c.total_call_seconds,
+        c.created_at,
+        json_build_object(
+          'id', p.id,
+          'plan_name', p.plan_name
+        ) as plan_info,
         COUNT(l.id) as total_leads
       FROM clients c
       LEFT JOIN leads l ON c.id = l.client_id
       LEFT JOIN pricing_plans p ON c.plan_id = p.id
-      GROUP BY c.id, p.plan_name
+      GROUP BY c.id, p.id, p.plan_name
       ORDER BY c.created_at DESC
     `);
     client.release();

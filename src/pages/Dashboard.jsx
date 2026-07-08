@@ -6,6 +6,7 @@ import {
   Server, Zap, UploadCloud, Play, CheckCircle2, XCircle, Calendar, MessageCircle
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import * as XLSX from 'xlsx';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -21,6 +22,7 @@ export default function Dashboard() {
   const [selectedCall, setSelectedCall] = useState(null);
   const [followUpLogs, setFollowUpLogs] = useState([]);
   const [serverStatus, setServerStatus] = useState('connecting'); // connecting, connected, error
+  const [clientStats, setClientStats] = useState({ total_call_seconds: 0, plan_expires_at: null });
   const navigate = useNavigate();
   
   const token = localStorage.getItem('saas_token');
@@ -112,8 +114,25 @@ export default function Dashboard() {
       }
     };
 
+    const fetchStats = async () => {
+      if (!token) return;
+      try {
+        const API_URL = import.meta.env.VITE_API_URL || '';
+        const response = await fetch(`${API_URL}/api/client/stats`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setClientStats(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch stats:", err);
+      }
+    };
+
     fetchLeads();
     fetchAppointments();
+    fetchStats();
   }, []);
 
   // Connect to SSE Backend
@@ -188,16 +207,35 @@ export default function Dashboard() {
     const file = e.target.files[0];
     if (!file) return;
     
-    // In a full implementation, we'd use XLSX or PapaParse here.
-    // For now, we simulate parsing the uploaded Excel/CSV file into leads.
-    setTimeout(() => {
-      setCampaignLeads([
-        { id: 101, name: 'Rahul Sharma', phone: '+919988776655', status: 'Pending' },
-        { id: 102, name: 'Anjali Fabrics', phone: '+918877665544', status: 'Pending' },
-        { id: 103, name: 'Vikas Textiles', phone: '+917766554433', status: 'Pending' },
-      ]);
-      alert(`Successfully loaded 3 leads from ${file.name}`);
-    }, 500);
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws);
+        
+        if (data.length === 0) {
+          alert("The Excel file is empty!");
+          return;
+        }
+
+        const parsedLeads = data.map((row, index) => ({
+          id: index + 1,
+          name: row.Name || row.name || 'Unknown',
+          phone: row.Phone || row.phone || row.Number || row.number || '',
+          status: 'Pending'
+        })).filter(lead => lead.phone); // Only keep rows that have a phone number
+
+        setCampaignLeads(parsedLeads);
+        alert(`Successfully loaded ${parsedLeads.length} leads from ${file.name}`);
+      } catch (err) {
+        console.error(err);
+        alert("Error parsing the Excel file. Please ensure it has 'Name' and 'Phone' columns.");
+      }
+    };
+    reader.readAsBinaryString(file);
   };
 
   const startBulkDialing = async () => {
@@ -301,6 +339,31 @@ export default function Dashboard() {
         
         {activeTab === 'live' && (
           <>
+            {/* Subscription Banner */}
+            <div className="glass-panel" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', padding: '16px 24px', background: 'linear-gradient(90deg, rgba(31, 41, 55, 0.7) 0%, rgba(17, 24, 39, 0.8) 100%)', borderLeft: '4px solid #10B981' }}>
+              <div style={{ display: 'flex', gap: '40px' }}>
+                <div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>AI Talk Time Used</div>
+                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#10B981' }}>{Math.floor((clientStats.total_call_seconds || 0) / 60)} <span style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: 'normal' }}>Mins</span></div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>Plan Expiry</div>
+                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#F59E0B' }}>
+                    {clientStats.plan_expires_at ? new Date(clientStats.plan_expires_at).toLocaleDateString() : 'N/A'}
+                  </div>
+                </div>
+              </div>
+              <div>
+                <button 
+                  onClick={() => navigate('/payment', { state: { client: clientData, planExpired: true } })}
+                  className="btn btn-primary" 
+                  style={{ background: '#10B981', color: 'white', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', border: 'none', cursor: 'pointer' }}
+                >
+                  <Zap size={18} /> Renew / Recharge
+                </button>
+              </div>
+            </div>
+
             {/* Metrics Grid */}
         <div className="metrics-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
           <div className="glass-panel metric-card" style={{ borderTop: '3px solid var(--color-primary)' }}>

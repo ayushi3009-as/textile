@@ -243,6 +243,7 @@ export default function SuperAdmin() {
                   <th>Payment Status</th>
                   <th>Exotel Virtual Number</th>
                   <th>Total Leads Generated</th>
+                  <th>Total AI Mins</th>
                   <th>Plan Expiration</th>
                   <th>Status</th>
                 </tr>
@@ -295,6 +296,12 @@ export default function SuperAdmin() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <Users size={16} color="var(--text-muted)" />
                           <span style={{ fontWeight: 'bold', fontSize: '16px' }}>{client.total_leads}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontWeight: 'bold', fontSize: '16px', color: '#10B981' }}>{Math.floor((client.total_call_seconds || 0) / 60)}</span>
+                          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>mins</span>
                         </div>
                       </td>
                       <td>

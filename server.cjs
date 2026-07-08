@@ -194,7 +194,7 @@ app.post('/api/login', async (req, res) => {
     }
     
     const token = jwt.sign({ id: client.id, email: client.email }, JWT_SECRET, { expiresIn: '24h' });
-    res.json({ token, client: { id: client.id, companyName: client.company_name, email: client.email } });
+    res.json({ token, client: { id: client.id, companyName: client.company_name, email: client.email, plan_expires_at: client.plan_expires_at, total_call_seconds: client.total_call_seconds } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Login failed' });
@@ -326,22 +326,23 @@ app.post('/api/submit-payment-receipt', async (req, res) => {
 // ==========================================
 
 // 1. Twilio TwiML Endpoint
-app.post('/twiml', async (req, res) => {
+app.all('/twiml', async (req, res) => {
   try {
     const VoiceResponse = require('twilio').twiml.VoiceResponse;
     const twiml = new VoiceResponse();
-    const twilioNumber = req.body.To;
-    const callerNumber = req.body.From;
-    const callSid = req.body.CallSid;
+    const twilioNumber = req.body?.To || req.query?.To;
+    const callerNumber = req.body?.From || req.query?.From;
+    const callSid = req.body?.CallSid || req.query?.CallSid;
     
     // Connect the call to our WebSocket stream
     const connect = twiml.connect();
-    connect.stream({
+    const stream = connect.stream({
       url: `wss://${req.headers.host}/media-stream`,
       name: 'texvibe-ai-stream'
-    }).parameter({ name: 'twilioNumber', value: twilioNumber })
-      .parameter({ name: 'callerNumber', value: callerNumber })
-      .parameter({ name: 'callSid', value: callSid });
+    });
+    stream.parameter({ name: 'twilioNumber', value: twilioNumber });
+    stream.parameter({ name: 'callerNumber', value: callerNumber });
+    stream.parameter({ name: 'callSid', value: callSid });
 
     res.type('text/xml');
     res.send(twiml.toString());
@@ -349,6 +350,13 @@ app.post('/twiml', async (req, res) => {
     console.error('[TWIML ERROR]', err);
     res.status(500).send('Error');
   }
+});
+
+// 2. Exotel Voicebot HTTP Handshake Endpoint
+app.all(['/media-stream', '/connection'], (req, res) => {
+  res.json({
+    url: `wss://${req.headers.host}/media-stream`
+  });
 });
 
 // 2. Exotel uses the App Bazaar (Voicebot Applet) to connect directly to the WebSocket URL (wss://api.tivra.marketing/connection).
@@ -382,15 +390,32 @@ app.get('/api/leads', authenticateToken, async (req, res) => {
       let recUrl = lead.recording_url;
       
       // Auto-fetch missing recordings if tunnel crashed
-      if (!recUrl && twilioClient && lead.twilio_call_sid && lead.twilio_call_sid.startsWith('CA')) {
-        try {
-          const recordings = await twilioClient.recordings.list({ callSid: lead.twilio_call_sid, limit: 1 });
-          if (recordings && recordings.length > 0) {
-            recUrl = `https://api.twilio.com${recordings[0].uri}`.replace('.json', '.mp3');
-            // Background update the DB
-            db.updateLeadRecording(lead.twilio_call_sid, recUrl).catch(() => {});
-          }
-        } catch(e) { console.error('[TWILIO] Fallback fetch failed', e.message); }
+      if (!recUrl && lead.twilio_call_sid) {
+        if (lead.twilio_call_sid.startsWith('CA')) {
+          // Twilio Fetch
+          try {
+            const recordings = await twilioClient.recordings.list({ callSid: lead.twilio_call_sid, limit: 1 });
+            if (recordings && recordings.length > 0) {
+              recUrl = `https://api.twilio.com${recordings[0].uri}`.replace('.json', '.mp3');
+              db.updateLeadRecording(lead.twilio_call_sid, recUrl).catch(() => {});
+            }
+          } catch(e) {}
+        } else {
+          // Exotel Fetch
+          try {
+            if (process.env.EXOTEL_API_KEY && process.env.EXOTEL_API_TOKEN) {
+              const authString = Buffer.from(`${process.env.EXOTEL_API_KEY}:${process.env.EXOTEL_API_TOKEN}`).toString('base64');
+              const response = await fetch(`https://${process.env.EXOTEL_SUBDOMAIN}/v1/Accounts/${process.env.EXOTEL_ACCOUNT_SID}/Calls/${lead.twilio_call_sid}.json`, {
+                headers: { 'Authorization': `Basic ${authString}` }
+              });
+              const data = await response.json();
+              if (data && data.Call && data.Call.RecordingUrl) {
+                recUrl = data.Call.RecordingUrl;
+                db.updateLeadRecording(lead.twilio_call_sid, recUrl).catch(() => {});
+              }
+            }
+          } catch (e) { console.error('[EXOTEL API ERROR]', e.message); }
+        }
       }
 
       return {
@@ -423,13 +448,33 @@ app.get('/api/leads', authenticateToken, async (req, res) => {
   }
 });
 
+app.get('/api/client/stats', authenticateToken, async (req, res) => {
+  try {
+    const client = await db.getClientByEmail(req.user.email);
+    if (!client) return res.status(404).json({ error: 'Client not found' });
+    res.json({
+      plan_expires_at: client.plan_expires_at,
+      total_call_seconds: client.total_call_seconds
+    });
+  } catch (err) {
+    console.error('[API ERROR] /api/client/stats:', err);
+    res.status(500).json({ error: 'Failed to fetch client stats' });
+  }
+});
+
 // Proxy endpoint to play Twilio recordings securely without browser auth prompts
 app.get('/api/play-recording', async (req, res) => {
   const audioUrl = req.query.url;
   if (!audioUrl) return res.status(400).send('Missing url parameter');
   
   try {
-    const auth = Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`).toString('base64');
+    let auth = '';
+    if (audioUrl.includes('exotel')) {
+      auth = Buffer.from(`${process.env.EXOTEL_API_KEY}:${process.env.EXOTEL_API_TOKEN}`).toString('base64');
+    } else {
+      auth = Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`).toString('base64');
+    }
+    
     const response = await fetch(audioUrl, {
       headers: { 'Authorization': `Basic ${auth}` }
     });
@@ -712,34 +757,47 @@ wss.on('connection', (ws, req) => {
     await speakText(greeting);
   };
 
-  // Convert text to speech and send to Twilio (using ElevenLabs)
+  // Convert text to speech and send to Twilio (using Azure)
   const speakText = async (text) => {
     try {
       isAISpeaking = true;
 
+      // Escape special XML characters in text
+      const cleanText = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+      // Dynamically detect language based on script
+      let voiceName = 'hi-IN-SwaraNeural';
+      let lang = 'hi-IN';
+      
+      const gujaratiRegex = /[\u0A80-\u0AFF]/;
+      if (gujaratiRegex.test(cleanText)) {
+        voiceName = 'gu-IN-DhwaniNeural';
+        lang = 'gu-IN';
+      }
+
+      const xml = `<speak version='1.0' xml:lang='${lang}'><voice name='${voiceName}'>${cleanText}</voice></speak>`;
+
       const response = await fetch(
-        `https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM?output_format=ulaw_8000`,
+        `https://${process.env.AZURE_REGION}.tts.speech.microsoft.com/cognitiveservices/v1`,
         {
           method: 'POST',
           headers: {
-            'xi-api-key': process.env.ELEVENLABS_API_KEY,
-            'Content-Type': 'application/json',
+            'Ocp-Apim-Subscription-Key': process.env.AZURE_SPEECH_KEY,
+            'Content-Type': 'application/ssml+xml',
+            'X-Microsoft-OutputFormat': 'raw-8khz-16bit-mono-pcm'
           },
-          body: JSON.stringify({ 
-            text: text, 
-            model_id: "eleven_multilingual_v2" 
-          }),
+          body: xml
         }
       );
 
       if (!response.ok) {
-        throw new Error(`ElevenLabs TTS error: ${response.status} ${response.statusText}`);
+        throw new Error(`Azure TTS error: ${response.status} ${response.statusText}`);
       }
 
       const audioBuffer = Buffer.from(await response.arrayBuffer());
       
-      // Send audio in chunks to telecom provider (160 bytes per chunk = 20ms of mulaw audio at 8kHz)
-      const CHUNK_SIZE = 160;
+      // Send audio in chunks to telecom provider (320 bytes per chunk = 20ms of linear16 audio at 8kHz)
+      const CHUNK_SIZE = 320;
       for (let i = 0; i < audioBuffer.length; i += CHUNK_SIZE) {
         const chunk = audioBuffer.subarray(i, Math.min(i + CHUNK_SIZE, audioBuffer.length));
         if (ws.readyState === WebSocket.OPEN && streamSid) {
@@ -801,7 +859,7 @@ wss.on('connection', (ws, req) => {
   const setupDeepgramSTT = async () => {
     try {
       const WebSocket = require('ws');
-      const url = `wss://api.deepgram.com/v1/listen?model=nova-2&language=hi&smart_format=true&encoding=mulaw&sample_rate=8000&channels=1&endpointing=400&interim_results=true&utterance_end_ms=2000`;
+      const url = `wss://api.deepgram.com/v1/listen?model=nova-2&language=hi&smart_format=true&encoding=linear16&sample_rate=8000&channels=1&endpointing=400&interim_results=true&utterance_end_ms=2000`;
       
       dgConnection = new WebSocket(url, {
         headers: {
@@ -1026,12 +1084,14 @@ Return ONLY a raw JSON object with the following schema, and no other text:
             wants_sample: !!extracted.wants_sample,
             status: extracted.status || "Completed",
             highlights: extracted.highlights,
-            transcript: callTranscript
+            transcript: callTranscript,
+            duration_seconds: totalDurationSeconds
           };
           
           let savedLead = null;
           try {
             savedLead = await db.saveLead(leadData, activeClientId);
+            await db.incrementClientTalkTime(activeClientId, totalDurationSeconds);
             
             // If they asked for an appointment, save it to the DB!
             if (extracted.appointment_time && savedLead && savedLead.id) {
